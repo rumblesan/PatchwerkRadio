@@ -1,0 +1,14 @@
+version: '3.9'
+services:
+  patchwerk:
+    build: .
+    image: rumblesan/patchwerk-radio
+  icecast:
+    image: moul/icecast
+    environment:
+      - ICECAST_SOURCE_PASSWORD=hackme
+      - ICECAST_ADMIN_PASSWORD=hackme
+      - ICECAST_PASSWORD=hackme
+      - ICECAST_RELAY_PASSWORD=hackme
+    ports:
+      - "8000:8000"
