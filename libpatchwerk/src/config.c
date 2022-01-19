@@ -46,14 +46,6 @@ RadioInputCfg *read_config(char *config_path) {
         config_setting_lookup_int(frsetting, "thread_sleep", &(radio_config->filereader.thread_sleep)),
         "Could not read filereader settings");
 
-  // Stretcher config
-  config_setting_t *strsetting = config_lookup(cfg, "stretcher");
-  check(strsetting != NULL &&
-        config_setting_lookup_float(strsetting, "stretch", &(radio_config->stretcher.stretch)) &&
-        config_setting_lookup_int(strsetting, "window_size", &(radio_config->stretcher.window_size)) &&
-        config_setting_lookup_int(strsetting, "thread_sleep", &(radio_config->stretcher.thread_sleep)),
-        "Could not read stretcher settings");
-
   // Encoder config
   config_setting_t *encsetting = config_lookup(cfg, "encoder");
   check(encsetting != NULL &&
@@ -69,7 +61,7 @@ RadioInputCfg *read_config(char *config_path) {
         config_setting_lookup_int(broadcastsetting, "port", &(radio_config->broadcast.port)) &&
         config_setting_lookup_bstring(broadcastsetting, "source", &(radio_config->broadcast.source)) &&
         config_setting_lookup_bstring(broadcastsetting, "password", &(radio_config->broadcast.password)) &&
-        config_setting_lookup_bstring(broadcastsetting, "mount", &(radio_config->broadcast.mount)) && 
+        config_setting_lookup_bstring(broadcastsetting, "mount", &(radio_config->broadcast.mount)) &&
         config_setting_lookup_bstring(broadcastsetting, "name", &(radio_config->broadcast.name)) &&
         config_setting_lookup_bstring(broadcastsetting, "description", &(radio_config->broadcast.description)) &&
         config_setting_lookup_bstring(broadcastsetting, "genre", &(radio_config->broadcast.genre)) &&

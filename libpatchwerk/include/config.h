@@ -38,7 +38,6 @@ typedef struct RadioInputCfg {
   int stats_interval;
 
   FileReaderInputCfg filereader;
-  StretcherInputCfg stretcher;
   EncoderInputCfg encoder;
   BroadcastInputCfg broadcast;
 
