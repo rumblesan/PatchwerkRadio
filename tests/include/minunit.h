@@ -1,6 +1,5 @@
 #undef NDEBUG
-#ifndef __BCLIB_MINUNIT_H__
-#define __BCLIB_MINUNIT_H__
+#pragma once
 
 #include <stdio.h>
 #include <bclib/dbg.h>
@@ -29,5 +28,3 @@
 
 
 int tests_run;
-
-#endif
