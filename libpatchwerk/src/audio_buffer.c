@@ -26,6 +26,12 @@ AudioBuffer *audio_buffer_create(int channels, int size) {
   return NULL;
 }
 
+float *interleaved_audio(int channels, int size) {
+  int total_length = channels * size;
+  float *audio = calloc(total_length, sizeof(float*));
+  return audio;
+}
+
 AudioBuffer *audio_buffer_from_float(float *audio, int channels, int size) {
   int chanlen = size / channels;
   AudioBuffer *ab = audio_buffer_create(channels, chanlen);

@@ -9,6 +9,7 @@
 #include "logging.h"
 
 #include <bclib/dbg.h>
+#include <libpd/z_libpd.h>
 #include <bclib/ringbuffer.h>
 
 AudioSynthesisProcessConfig *audio_synthesis_config_create(
@@ -44,6 +45,25 @@ void *start_audio_synthesis(void *_cfg) {
 
   AudioSynthesisProcessConfig *cfg = _cfg;
 
+  libpd_init();
+  const char *directory = "/opt/patchwerk/patches";
+  const char *patch = "test.pd";
+  void *pd_file = libpd_openfile(patch, directory);
+  check(pd_file != NULL, "Could not open pd patch");
+  cfg->pd_file = pd_file;
+
+  int blocksize = libpd_blocksize();
+  int channel_num = 2;
+  int pd_init = libpd_init_audio(0, channel_num, 44100);
+  check(pd_init == 0, "Could not initialise PD: %d", pd_init);
+
+  check(!libpd_start_message(16), "Could not allocate space for PD message");
+  libpd_add_float(1);
+  libpd_finish_message("pd", "dsp");
+
+  float *in_buffer = interleaved_audio(channel_num, blocksize);
+  float *out_buffer = interleaved_audio(channel_num, blocksize);
+
   int pushed_msgs = 0;
 
   *(cfg->status_var) = 1;
@@ -66,8 +86,11 @@ void *start_audio_synthesis(void *_cfg) {
 
       check(true, "stand in check");
 
-      AudioBuffer *buf = audio_buffer_create(2, 64);
-      Message *msg = audio_buffer_message(buf);
+      int audio_check = libpd_process_float(1, in_buffer, out_buffer);
+      check(audio_check == 0, "PD could not create audio");
+      AudioBuffer *out_audio = audio_buffer_from_float(out_buffer, channel_num, channel_num * blocksize);
+
+      Message *msg = audio_buffer_message(out_audio);
       rb_push(cfg->pipe_out, msg);
     } else {
       if (pushed_msgs > 0) {

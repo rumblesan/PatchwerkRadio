@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libpd/z_libpd.h>
 #include <bclib/ringbuffer.h>
 
 typedef struct AudioSynthesisProcessConfig {
@@ -7,6 +8,8 @@ typedef struct AudioSynthesisProcessConfig {
   int max_push_msgs;
 
   int *status_var;
+
+  void *pd_file;
 
   RingBuffer *pipe_out;
 
