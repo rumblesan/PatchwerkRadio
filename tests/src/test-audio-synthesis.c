@@ -1,11 +1,10 @@
-#include "minunit.h"
 #include "audio_synthesis_process.h"
 #include "messages.h"
+#include "minunit.h"
 
-#include <bclib/ringbuffer.h>
 #include <bclib/bstrlib.h>
 #include <bclib/dbg.h>
-
+#include <bclib/ringbuffer.h>
 
 char *test_audio_synthesis_config_create() {
   bstring patch_directory = bfromcstr("/some/dir/here");
@@ -18,14 +17,8 @@ char *test_audio_synthesis_config_create() {
   RingBuffer *pipe_out = rb_create(100);
 
   EncoderProcessConfig *cfg = audio_synthesis_config_create(
-      patch_directory,
-      patch_file,
-      samplerate,
-      channels,
-      max_push_msgs,
-      &audio_synth_status,
-      pipe_out
-  );
+      patch_directory, patch_file, samplerate, channels, max_push_msgs,
+      &audio_synth_status, pipe_out);
 
   mu_assert(cfg != NULL, "Could not create audio synthesis process config");
 

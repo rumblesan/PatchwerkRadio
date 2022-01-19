@@ -26,15 +26,10 @@ typedef struct EncoderProcessConfig {
 
 } EncoderProcessConfig;
 
-EncoderProcessConfig *encoder_config_create(int channels,
-                                            int samplerate,
-                                            int format,
-                                            double quality,
-                                            int thread_sleep,
-                                            int max_push_msgs,
-                                            int *status_var,
-                                            RingBuffer *pipe_in,
-                                            RingBuffer *pipe_out);
+EncoderProcessConfig *
+encoder_config_create(int channels, int samplerate, int format, double quality,
+                      int thread_sleep, int max_push_msgs, int *status_var,
+                      RingBuffer *pipe_in, RingBuffer *pipe_out);
 
 void encoder_config_destroy(EncoderProcessConfig *cfg);
 

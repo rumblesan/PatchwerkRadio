@@ -2,10 +2,10 @@
 
 typedef struct AudioBuffer {
 
-    int size;
-    int channels;
+  int size;
+  int channels;
 
-    float **buffers;
+  float **buffers;
 
 } AudioBuffer;
 

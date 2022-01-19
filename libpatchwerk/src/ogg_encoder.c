@@ -2,34 +2,37 @@
 #include <stdlib.h>
 #include <vorbis/vorbisenc.h>
 
-#include "ogg_encoder.h"
-#include "filechunk.h"
-#include "messages.h"
-#include "logging.h"
 #include "audio_buffer.h"
+#include "filechunk.h"
+#include "logging.h"
+#include "messages.h"
+#include "ogg_encoder.h"
 
 #include "bclib/dbg.h"
 
-OggEncoderState *ogg_encoder_state(long channels, long samplerate, float quality) {
+OggEncoderState *ogg_encoder_state(long channels, long samplerate,
+                                   float quality) {
   OggEncoderState *encoder = malloc(sizeof(OggEncoderState));
   check_mem(encoder);
 
   vorbis_info_init(&(encoder->vi));
   vorbis_comment_init(&(encoder->vc));
 
-  int initerr = vorbis_encode_init_vbr(&(encoder->vi), channels, samplerate, quality);
+  int initerr =
+      vorbis_encode_init_vbr(&(encoder->vi), channels, samplerate, quality);
   check(!initerr, "Error initialising encoder");
 
   /* set up the analysis state and auxiliary encoding storage */
-  vorbis_analysis_init(&(encoder->vd),&(encoder->vi));
-  vorbis_block_init(&(encoder->vd),&(encoder->vb));
+  vorbis_analysis_init(&(encoder->vd), &(encoder->vi));
+  vorbis_block_init(&(encoder->vd), &(encoder->vb));
   return encoder;
- error:
+error:
   return NULL;
 }
 
 void set_metadata(OggEncoderState *encoder, PatchInfo *info) {
-  vorbis_comment_add_tag(&(encoder->vc), "ENCODER", "Patchwerk Radio - LibVorbis");
+  vorbis_comment_add_tag(&(encoder->vc), "ENCODER",
+                         "Patchwerk Radio - LibVorbis");
   vorbis_comment_add_tag(&(encoder->vc), "ARTIST", bdata(info->creator));
   vorbis_comment_add_tag(&(encoder->vc), "TITLE", bdata(info->title));
 }
@@ -49,16 +52,18 @@ int write_headers(OggEncoderState *encoder, FileChunk *chunk) {
      make the headers, then pass them to libvorbis one at a time;
      libvorbis handles the additional Ogg bitstream constraints */
 
-  vorbis_analysis_headerout(&(encoder->vd), &(encoder->vc), &header, &header_comm, &header_code);
+  vorbis_analysis_headerout(&(encoder->vd), &(encoder->vc), &header,
+                            &header_comm, &header_code);
 
   ogg_stream_packetin(&(encoder->os), &header);
   ogg_stream_packetin(&(encoder->os), &header_comm);
   ogg_stream_packetin(&(encoder->os), &header_code);
 
   ogg_page output_page;
-  while(1) {
+  while (1) {
     int result = ogg_stream_flush(&(encoder->os), &output_page);
-    if(result == 0) break;
+    if (result == 0)
+      break;
     file_chunk_extend(chunk, output_page.header, output_page.header_len);
     file_chunk_extend(chunk, output_page.body, output_page.body_len);
   }
@@ -80,7 +85,7 @@ int add_audio(OggEncoderState *encoder, AudioBuffer *audio) {
     }
     return vorbis_analysis_wrote(&(encoder->vd), audio->size);
   }
- error:
+error:
   return -1;
 }
 
@@ -91,14 +96,14 @@ int write_audio(OggEncoderState *encoder, FileChunk *chunk) {
      more involved (potentially parallel) processing.  Get a single
      block for encoding now */
 
-  while(vorbis_analysis_blockout(&(encoder->vd), &(encoder->vb)) == 1){
+  while (vorbis_analysis_blockout(&(encoder->vd), &(encoder->vb)) == 1) {
     /* analysis, assume we want to use bitrate management */
-    vorbis_analysis(&(encoder->vb),NULL);
+    vorbis_analysis(&(encoder->vb), NULL);
     vorbis_bitrate_addblock(&(encoder->vb));
 
     ogg_packet new_packet;
 
-    while(vorbis_bitrate_flushpacket(&(encoder->vd), &new_packet)) {
+    while (vorbis_bitrate_flushpacket(&(encoder->vd), &new_packet)) {
 
       /* weld the packet into the bitstream */
       ogg_stream_packetin(&(encoder->os), &new_packet);
@@ -106,9 +111,10 @@ int write_audio(OggEncoderState *encoder, FileChunk *chunk) {
       /* write out pages (if any) */
       ogg_page new_page;
 
-      while(!finished) {
+      while (!finished) {
         int result = ogg_stream_pageout(&(encoder->os), &new_page);
-        if(result == 0) break;
+        if (result == 0)
+          break;
         file_chunk_extend(chunk, new_page.header, new_page.header_len);
         file_chunk_extend(chunk, new_page.body, new_page.body_len);
         check(chunk->data != NULL, "Encoder error");
@@ -116,17 +122,16 @@ int write_audio(OggEncoderState *encoder, FileChunk *chunk) {
         /* this could be set above, but for illustrative purposes, I do
            it here (to show that vorbis does know where the stream ends) */
 
-        if(ogg_page_eos(&new_page)) {
+        if (ogg_page_eos(&new_page)) {
           logger("Ogg Encoder", "Finished");
           finished = 1;
         }
       }
     }
-
   }
 
   return finished;
- error:
+error:
   return 0;
 }
 

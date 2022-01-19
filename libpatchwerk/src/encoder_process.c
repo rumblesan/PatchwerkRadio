@@ -1,27 +1,22 @@
-#include <stdlib.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "encoder_process.h"
 
-#include "ogg_encoder.h"
 #include "filechunk.h"
-#include "messages.h"
 #include "logging.h"
+#include "messages.h"
+#include "ogg_encoder.h"
 
 #include "bclib/dbg.h"
 #include "bclib/ringbuffer.h"
 
-EncoderProcessConfig *encoder_config_create(int channels,
-                                            int samplerate,
-                                            int format,
-                                            double quality,
-                                            int thread_sleep,
-                                            int max_push_msgs,
-                                            int *status_var,
-                                            RingBuffer *pipe_in,
-                                            RingBuffer *pipe_out) {
+EncoderProcessConfig *
+encoder_config_create(int channels, int samplerate, int format, double quality,
+                      int thread_sleep, int max_push_msgs, int *status_var,
+                      RingBuffer *pipe_in, RingBuffer *pipe_out) {
 
   EncoderProcessConfig *cfg = malloc(sizeof(EncoderProcessConfig));
   check_mem(cfg);
@@ -32,31 +27,32 @@ EncoderProcessConfig *encoder_config_create(int channels,
   check(pipe_out != NULL, "Invalid msg out buffer passed");
   cfg->pipe_out = pipe_out;
 
-  cfg->channels     = channels;
-  cfg->samplerate   = samplerate;
-  cfg->format       = format;
-  cfg->quality      = quality;
+  cfg->channels = channels;
+  cfg->samplerate = samplerate;
+  cfg->format = format;
+  cfg->quality = quality;
 
   cfg->status_var = status_var;
 
-  cfg->thread_sleep  = thread_sleep;
+  cfg->thread_sleep = thread_sleep;
   cfg->max_push_msgs = max_push_msgs;
 
   return cfg;
- error:
+error:
   return NULL;
 }
 
-void encoder_config_destroy(EncoderProcessConfig *cfg) {
-  free(cfg);
-}
+void encoder_config_destroy(EncoderProcessConfig *cfg) { free(cfg); }
 
-EncoderState waiting_for_file_state(EncoderProcessConfig *cfg, OggEncoderState **encoderP, Message *input_msg) {
+EncoderState waiting_for_file_state(EncoderProcessConfig *cfg,
+                                    OggEncoderState **encoderP,
+                                    Message *input_msg) {
 
   if (input_msg->type == NEWPATCH) {
     logger("Encoder", "New Patch received. Creating new encoder");
 
-    OggEncoderState *new_encoder = ogg_encoder_state(cfg->channels, cfg->samplerate, cfg->quality);
+    OggEncoderState *new_encoder =
+        ogg_encoder_state(cfg->channels, cfg->samplerate, cfg->quality);
     check(new_encoder != NULL, "Could not create new encoder state");
     *encoderP = new_encoder;
 
@@ -81,17 +77,21 @@ EncoderState waiting_for_file_state(EncoderProcessConfig *cfg, OggEncoderState *
     message_destroy(input_msg);
     return CLOSINGSTREAM;
   } else {
-    err_logger("Encoder", "Received message of type %s but waiting for new patch", msg_type(input_msg));
+    err_logger("Encoder",
+               "Received message of type %s but waiting for new patch",
+               msg_type(input_msg));
     message_destroy(input_msg);
     return ENCODERERROR;
   }
- error:
+error:
   return ENCODERERROR;
 }
 
-EncoderState encoding_file_state(EncoderProcessConfig *cfg, OggEncoderState **encoderP, Message *input_msg) {
+EncoderState encoding_file_state(EncoderProcessConfig *cfg,
+                                 OggEncoderState **encoderP,
+                                 Message *input_msg) {
   FileChunk *audio_data = NULL;
-  Message *output_msg   = NULL;
+  Message *output_msg = NULL;
 
   check(encoderP != NULL, "Invalid encoder passed");
   OggEncoderState *encoder = *encoderP;
@@ -148,13 +148,14 @@ EncoderState encoding_file_state(EncoderProcessConfig *cfg, OggEncoderState **en
     logger("Encoder", "Changing to waiting for file state");
     return WAITINGFORFILE;
   } else {
-    err_logger("Encoder", "Received invalid %s message whilst in encoding state",
-            msg_type(input_msg));
+    err_logger("Encoder",
+               "Received invalid %s message whilst in encoding state",
+               msg_type(input_msg));
     message_destroy(input_msg);
     return ENCODERERROR;
   }
 
- error:
+error:
   return ENCODERERROR;
 }
 
@@ -181,13 +182,14 @@ void *start_encoder(void *_cfg) {
       running = false;
     }
 
-    if (!rb_empty(cfg->pipe_in) && !rb_full(cfg->pipe_out) && pushed_msgs < cfg->max_push_msgs) {
+    if (!rb_empty(cfg->pipe_in) && !rb_full(cfg->pipe_out) &&
+        pushed_msgs < cfg->max_push_msgs) {
       pushed_msgs += 1;
 
       Message *input_msg = rb_pop(cfg->pipe_in);
       check(input_msg != NULL, "Encoder: Could not get input message");
 
-      switch(state) {
+      switch (state) {
       case WAITINGFORFILE:
         state = waiting_for_file_state(cfg, &encoder, input_msg);
         break;
@@ -207,14 +209,15 @@ void *start_encoder(void *_cfg) {
       sched_yield();
       nanosleep(&tim, &tim2);
     }
-
   }
 
- error:
+error:
   logger("Encoder", "Finished");
   *(cfg->status_var) = 0;
-  if (cfg != NULL) encoder_config_destroy(cfg);
-  if (encoder != NULL) cleanup_encoder(encoder);
+  if (cfg != NULL)
+    encoder_config_destroy(cfg);
+  if (encoder != NULL)
+    cleanup_encoder(encoder);
   logger("Encoder", "Cleaned up");
   return NULL;
 }

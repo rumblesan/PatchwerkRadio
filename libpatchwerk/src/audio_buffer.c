@@ -7,14 +7,14 @@
 AudioBuffer *audio_buffer_create(int channels, int size) {
   AudioBuffer *audio = malloc(sizeof(AudioBuffer));
   check_mem(audio);
-  audio->size     = size;
+  audio->size = size;
   audio->channels = channels;
 
-  audio->buffers = malloc(sizeof(float*) * channels);
+  audio->buffers = malloc(sizeof(float *) * channels);
   check_mem(audio->buffers);
   for (int c = 0; c < channels; c++) {
     if (size > 0) {
-      audio->buffers[c] = calloc(size, sizeof(float*));
+      audio->buffers[c] = calloc(size, sizeof(float *));
       check_mem(audio->buffers[c]);
     } else {
       audio->buffers[c] = NULL;
@@ -22,13 +22,13 @@ AudioBuffer *audio_buffer_create(int channels, int size) {
   }
 
   return audio;
- error:
+error:
   return NULL;
 }
 
 float *interleaved_audio(int channels, int size) {
   int total_length = channels * size;
-  float *audio = calloc(total_length, sizeof(float*));
+  float *audio = calloc(total_length, sizeof(float *));
   return audio;
 }
 
@@ -43,7 +43,7 @@ AudioBuffer *audio_buffer_from_float(float *audio, int channels, int size) {
     }
   }
   return ab;
- error:
+error:
   return NULL;
 }
 
@@ -59,7 +59,7 @@ float *audio_buffer_to_float(AudioBuffer *buffer) {
     }
   }
   return audio;
- error:
+error:
   return NULL;
 }
 

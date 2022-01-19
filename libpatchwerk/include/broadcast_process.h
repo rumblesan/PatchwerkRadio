@@ -2,8 +2,8 @@
 
 #include <shout/shout.h>
 
-#include "bclib/ringbuffer.h"
 #include "bclib/bstrlib.h"
+#include "bclib/ringbuffer.h"
 
 typedef struct BroadcastProcessConfig {
 
@@ -28,19 +28,11 @@ typedef struct BroadcastProcessConfig {
 
 } BroadcastProcessConfig;
 
-BroadcastProcessConfig *broadcast_config_create(bstring host,
-                                                int port,
-                                                bstring user,
-                                                bstring pass,
-                                                bstring mount,
-                                                bstring name,
-                                                bstring description,
-                                                bstring genre,
-                                                bstring url,
-                                                int protocol,
-                                                int format,
-                                                int *status_var,
-                                                RingBuffer *pipe_in);
+BroadcastProcessConfig *
+broadcast_config_create(bstring host, int port, bstring user, bstring pass,
+                        bstring mount, bstring name, bstring description,
+                        bstring genre, bstring url, int protocol, int format,
+                        int *status_var, RingBuffer *pipe_in);
 
 void broadcast_config_destroy(BroadcastProcessConfig *cfg);
 

@@ -37,7 +37,6 @@ char *test_file_chunk_extend() {
   return NULL;
 }
 
-
 char *all_tests() {
   mu_suite_start();
 

@@ -1,12 +1,11 @@
 
-#include "minunit.h"
 #include "encoder_process.h"
 #include "messages.h"
+#include "minunit.h"
 
-#include <bclib/ringbuffer.h>
 #include <bclib/bstrlib.h>
 #include <bclib/dbg.h>
-
+#include <bclib/ringbuffer.h>
 
 char *test_encoder_config_create() {
   int channels = 2;
@@ -20,15 +19,9 @@ char *test_encoder_config_create() {
   RingBuffer *pipe_in = rb_create(100);
   RingBuffer *pipe_out = rb_create(100);
 
-  EncoderProcessConfig *cfg = encoder_config_create(channels,
-                                                    samplerate,
-                                                    format,
-                                                    quality,
-                                                    thread_sleep,
-                                                    max_push_msgs,
-                                                    &encoder_status,
-                                                    pipe_in,
-                                                    pipe_out);
+  EncoderProcessConfig *cfg =
+      encoder_config_create(channels, samplerate, format, quality, thread_sleep,
+                            max_push_msgs, &encoder_status, pipe_in, pipe_out);
 
   mu_assert(cfg != NULL, "Could not create encoder process config");
 
@@ -49,7 +42,8 @@ char *test_encoder_loop() {
   int read_size = 2048;
   int encoder_status = -1;
 
-  PatchInfo *patch_info = patch_info_create(bfromcstr("creator"), bfromcstr("title"));
+  PatchInfo *patch_info =
+      patch_info_create(bfromcstr("creator"), bfromcstr("title"));
   Message *input_msg = NULL;
   Message *output_msg = NULL;
   AudioBuffer *audio = NULL;
@@ -57,15 +51,9 @@ char *test_encoder_loop() {
   RingBuffer *pipe_in = rb_create(maxmsgs + 10);
   RingBuffer *pipe_out = rb_create(maxmsgs + 10);
 
-  EncoderProcessConfig *cfg = encoder_config_create(channels,
-                                                    samplerate,
-                                                    format,
-                                                    quality,
-                                                    thread_sleep,
-                                                    max_push_msgs,
-                                                    &encoder_status,
-                                                    pipe_in,
-                                                    pipe_out);
+  EncoderProcessConfig *cfg =
+      encoder_config_create(channels, samplerate, format, quality, thread_sleep,
+                            max_push_msgs, &encoder_status, pipe_in, pipe_out);
 
   mu_assert(cfg != NULL, "Could not create encoder process config");
 
@@ -114,15 +102,9 @@ char *test_multi_loop() {
   RingBuffer *pipe_in = rb_create(patchs * (patch_msgs + 10));
   RingBuffer *pipe_out = rb_create(patchs * (patch_msgs + 10));
 
-  EncoderProcessConfig *cfg = encoder_config_create(channels,
-                                                    samplerate,
-                                                    format,
-                                                    quality,
-                                                    thread_sleep,
-                                                    max_push_msgs,
-                                                    &encoder_status,
-                                                    pipe_in,
-                                                    pipe_out);
+  EncoderProcessConfig *cfg =
+      encoder_config_create(channels, samplerate, format, quality, thread_sleep,
+                            max_push_msgs, &encoder_status, pipe_in, pipe_out);
 
   mu_assert(cfg != NULL, "Could not create encoder process config");
 
@@ -158,7 +140,6 @@ char *test_multi_loop() {
   rb_destroy(pipe_out);
   return NULL;
 }
-
 
 char *all_tests() {
   mu_suite_start();

@@ -1,9 +1,8 @@
 #include "minunit.h"
 
-#include "messages.h"
-#include "filechunk.h"
 #include "audio_buffer.h"
-
+#include "filechunk.h"
+#include "messages.h"
 
 char *test_stream_finish_message_create() {
   Message *message = stream_finished_message();
@@ -20,7 +19,8 @@ char *test_patch_finish_message_create() {
 }
 
 char *test_new_patch_message_create() {
-  PatchInfo *patch_info = patch_info_create(bfromcstr("creator"), bfromcstr("title"));
+  PatchInfo *patch_info =
+      patch_info_create(bfromcstr("creator"), bfromcstr("title"));
   Message *message = new_patch_message(patch_info);
   mu_assert(message != NULL, "Could not create new patch message");
   message_destroy(message);
@@ -55,7 +55,6 @@ char *test_audio_buffer_message_create() {
   message_destroy(message);
   return NULL;
 }
-
 
 char *all_tests() {
   mu_suite_start();
