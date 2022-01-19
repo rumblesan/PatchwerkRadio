@@ -64,20 +64,22 @@ int main (int argc, char *argv[]) {
   encode2broadcast = rb_create(100);
   check(encode2broadcast != NULL, "Couldn't create coms from encoder to broadcaster");
 
-  int max_push_msgs = 10;
-
   audio_synth_cfg = audio_synthesis_config_create(
-                                          max_push_msgs,
+                                          radio_config->puredata.patch_directory,
+                                          radio_config->puredata.patch_file,
+                                          radio_config->audio.samplerate,
+                                          radio_config->audio.channels,
+                                          radio_config->system.max_push_messages,
                                           &audio_synth_status,
                                           audio2encode);
   check(audio_synth_cfg != NULL, "Couldn't create stretcher process config");
 
-  encoder_cfg = encoder_config_create(radio_config->channels,
-                                      radio_config->encoder.samplerate,
+  encoder_cfg = encoder_config_create(radio_config->audio.channels,
+                                      radio_config->audio.samplerate,
                                       SF_FORMAT_OGG | SF_FORMAT_VORBIS,
                                       radio_config->encoder.quality,
-                                      radio_config->encoder.thread_sleep,
-                                      max_push_msgs,
+                                      radio_config->system.thread_sleep,
+                                      radio_config->system.max_push_messages,
                                       &encoder_status,
                                       audio2encode, encode2broadcast);
   check(encoder_cfg != NULL, "Couldn't create encoder process config");
@@ -131,7 +133,7 @@ int main (int argc, char *argv[]) {
   int as2enc_msgs = 0;
   int enc2brd_msgs = 0;
   while (1) {
-    sleep(radio_config->stats_interval);
+    sleep(radio_config->system.stats_interval);
     if (audio_synth_status == 0) {
       err_logger("SlowRadio", "Stopped Synthesising!");
       break;

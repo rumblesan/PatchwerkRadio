@@ -1,14 +1,20 @@
 #pragma once
 
 #include <libpd/z_libpd.h>
-#include <bclib/ringbuffer.h>
+
+#include "bclib/ringbuffer.h"
+#include "bclib/bstrlib.h"
 
 typedef struct AudioSynthesisProcessConfig {
 
+  bstring patch_directory;
+  bstring patch_file;
+
+  int samplerate;
+  int channels;
+
   int max_push_msgs;
-
   int *status_var;
-
   void *pd_file;
 
   RingBuffer *pipe_out;
@@ -16,6 +22,10 @@ typedef struct AudioSynthesisProcessConfig {
 } AudioSynthesisProcessConfig;
 
 AudioSynthesisProcessConfig *audio_synthesis_config_create(
+        bstring patch_directory,
+        bstring patch_file,
+        int samplerate,
+        int channels,
         int max_push_msgs,
         int *status_var,
         RingBuffer *pipe_out

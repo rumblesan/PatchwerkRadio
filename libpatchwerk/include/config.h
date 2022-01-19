@@ -2,21 +2,17 @@
 
 #include "bclib/bstrlib.h"
 
-typedef struct FileReaderInputCfg {
-  bstring pattern;
-  int read_size;
-  int thread_sleep;
-} FileReaderInputCfg;
+typedef struct AudioInputCfg {
+  int channels;
+  int samplerate;
+} AudioInputCfg;
 
-typedef struct StretcherInputCfg {
-  double stretch;
-  int window_size;
-  int thread_sleep;
-} StretcherInputCfg;
+typedef struct PureDataInputCfg {
+  bstring patch_directory;
+  bstring patch_file;
+} PureDataInputCfg;
 
 typedef struct EncoderInputCfg {
-  int samplerate;
-  int thread_sleep;
   double quality;
 } EncoderInputCfg;
 
@@ -32,12 +28,16 @@ typedef struct BroadcastInputCfg {
   bstring url;
 } BroadcastInputCfg;
 
-typedef struct RadioInputCfg {
-
-  int channels;
+typedef struct SystemInputCfg {
+  int thread_sleep;
   int stats_interval;
+  int max_push_messages;
+} SystemInputCfg;
 
-  FileReaderInputCfg filereader;
+typedef struct RadioInputCfg {
+  PureDataInputCfg puredata;
+  AudioInputCfg audio;
+  SystemInputCfg system;
   EncoderInputCfg encoder;
   BroadcastInputCfg broadcast;
 

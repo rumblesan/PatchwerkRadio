@@ -30,27 +30,21 @@ RadioInputCfg *read_config(char *config_path) {
         "Could not read config file - %s:%d - %s",
         config_error_file(cfg), config_error_line(cfg), config_error_text(cfg));
 
-  // Channels config
-  check(config_lookup_int(cfg, "channels", &(radio_config->channels)),
-        "Could not read channels setting");
+  config_setting_t *audiosetting = config_lookup(cfg, "audio");
+  check(audiosetting != NULL &&
+        config_setting_lookup_int(audiosetting, "channels", &(radio_config->audio.channels)) &&
+        config_setting_lookup_int(audiosetting, "samplerate", &(radio_config->audio.samplerate)),
+        "Could not read audio settings");
 
-  // Stats interval config
-  check(config_lookup_int(cfg, "stats_interval", &(radio_config->stats_interval)),
-        "Could not read stats interval setting");
-
-  // File Reader config
-  config_setting_t *frsetting = config_lookup(cfg, "filereader");
-  check(frsetting != NULL &&
-        config_setting_lookup_int(frsetting, "read_size", &(radio_config->filereader.read_size)) &&
-        config_setting_lookup_bstring(frsetting, "pattern", &(radio_config->filereader.pattern)) &&
-        config_setting_lookup_int(frsetting, "thread_sleep", &(radio_config->filereader.thread_sleep)),
-        "Could not read filereader settings");
+  config_setting_t *pdsetting = config_lookup(cfg, "puredata");
+  check(pdsetting != NULL &&
+        config_setting_lookup_bstring(pdsetting, "patch_directory", &(radio_config->puredata.patch_directory)) &&
+        config_setting_lookup_bstring(pdsetting, "patch_file", &(radio_config->puredata.patch_file)),
+        "Could not read pure data settings");
 
   // Encoder config
   config_setting_t *encsetting = config_lookup(cfg, "encoder");
   check(encsetting != NULL &&
-        config_setting_lookup_int(encsetting, "samplerate", &(radio_config->encoder.samplerate)) &&
-        config_setting_lookup_int(encsetting, "thread_sleep", &(radio_config->encoder.thread_sleep)) &&
         config_setting_lookup_float(encsetting, "quality", &(radio_config->encoder.quality)),
         "Could not read encoder settings");
 
@@ -68,6 +62,14 @@ RadioInputCfg *read_config(char *config_path) {
         config_setting_lookup_bstring(broadcastsetting, "url", &(radio_config->broadcast.url)),
         "Could not read broadcast settings");
 
+  // Encoder config
+  config_setting_t *syssetting = config_lookup(cfg, "system");
+  check(syssetting != NULL &&
+        config_setting_lookup_int(syssetting, "thread_sleep", &(radio_config->system.thread_sleep)) &&
+        config_setting_lookup_int(syssetting, "stats_interval", &(radio_config->system.stats_interval)) &&
+        config_setting_lookup_int(syssetting, "max_push_messages", &(radio_config->system.max_push_messages)),
+        "Could not read system settings");
+
   if (cfg != NULL) config_destroy(cfg);
   return radio_config;
  error:
@@ -78,7 +80,8 @@ RadioInputCfg *read_config(char *config_path) {
 
 void destroy_config(RadioInputCfg *cfg) {
   check(cfg != NULL, "Invalid config");
-  bdestroy(cfg->filereader.pattern);
+  bdestroy(cfg->puredata.patch_directory);
+  bdestroy(cfg->puredata.patch_file);
 
   bdestroy(cfg->broadcast.host);
   bdestroy(cfg->broadcast.source);
