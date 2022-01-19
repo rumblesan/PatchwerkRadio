@@ -26,17 +26,17 @@ Message *audio_buffer_message(AudioBuffer *buffer) {
   return NULL;
 }
 
-Message *new_track_message(TrackInfo *info) {
-  check(info != NULL, "Could not create track info");
-  Message *message = message_create(NEWTRACK, info);
+Message *new_patch_message(PatchInfo *info) {
+  check(info != NULL, "Could not create patch info");
+  Message *message = message_create(NEWPATCH, info);
   check(message != NULL, "Could not create message");
   return message;
  error:
   return NULL;
 }
 
-Message *track_finished_message() {
-  Message *message = message_create(TRACKFINISHED, NULL);
+Message *patch_finished_message() {
+  Message *message = message_create(PATCHFINISHED, NULL);
   check(message != NULL, "Could not create message");
   return message;
  error:
@@ -50,19 +50,19 @@ Message *stream_finished_message() {
   return NULL;
 }
 
-TrackInfo *track_info_create(bstring artist, bstring title) {
-  TrackInfo *info = malloc(sizeof(TrackInfo));
+PatchInfo *patch_info_create(bstring creator, bstring title) {
+  PatchInfo *info = malloc(sizeof(PatchInfo));
   check_mem(info);
-  info->artist = artist;
+  info->creator = creator;
   info->title  = title;
   return info;
  error:
   return NULL;
 }
-void track_info_destroy(TrackInfo *info) {
-  check(info->artist != NULL, "Invalid artist");
-  check(info->title != NULL, "Invalid artist");
-  bdestroy(info->artist);
+void patch_info_destroy(PatchInfo *info) {
+  check(info->creator != NULL, "Invalid creator");
+  check(info->title != NULL, "Invalid title");
+  bdestroy(info->creator);
   bdestroy(info->title);
   free(info);
   return;
@@ -88,8 +88,8 @@ void message_destroy(Message *message) {
   switch (message->type) {
   case AUDIOBUFFER: audio_buffer_destroy(message->payload); break;
   case FILECHUNK: file_chunk_destroy(message->payload); break;
-  case NEWTRACK: track_info_destroy(message->payload); break;
-  case TRACKFINISHED: break;
+  case NEWPATCH: patch_info_destroy(message->payload); break;
+  case PATCHFINISHED: break;
   case STREAMFINISHED: break;
   }
   free(message);
@@ -102,8 +102,8 @@ const char *msg_type(Message *message) {
   switch (message->type) {
   case AUDIOBUFFER: return "AudioBuffer";
   case FILECHUNK: return "FileChunk";
-  case NEWTRACK: return "NewTrack";
-  case TRACKFINISHED: return "TrackFinished";
+  case NEWPATCH: return "NewPatch";
+  case PATCHFINISHED: return "PatchFinished";
   case STREAMFINISHED: return "StreamFinished";
   }
  error:

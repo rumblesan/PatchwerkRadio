@@ -53,15 +53,15 @@ void encoder_config_destroy(EncoderProcessConfig *cfg) {
 
 EncoderState waiting_for_file_state(EncoderProcessConfig *cfg, OggEncoderState **encoderP, Message *input_msg) {
 
-  if (input_msg->type == NEWTRACK) {
-    logger("Encoder", "New Track received. Creating new encoder");
+  if (input_msg->type == NEWPATCH) {
+    logger("Encoder", "New Patch received. Creating new encoder");
 
     OggEncoderState *new_encoder = ogg_encoder_state(cfg->channels, cfg->samplerate, cfg->quality);
     check(new_encoder != NULL, "Could not create new encoder state");
     *encoderP = new_encoder;
 
-    TrackInfo *tinfo = input_msg->payload;
-    check(tinfo != NULL, "Could not get track info from message");
+    PatchInfo *tinfo = input_msg->payload;
+    check(tinfo != NULL, "Could not get patch info from message");
 
     set_metadata(new_encoder, tinfo);
 
@@ -81,7 +81,7 @@ EncoderState waiting_for_file_state(EncoderProcessConfig *cfg, OggEncoderState *
     message_destroy(input_msg);
     return CLOSINGSTREAM;
   } else {
-    err_logger("Encoder", "Received message of type %s but waiting for new track", msg_type(input_msg));
+    err_logger("Encoder", "Received message of type %s but waiting for new patch", msg_type(input_msg));
     message_destroy(input_msg);
     return ENCODERERROR;
   }
@@ -121,8 +121,8 @@ EncoderState encoding_file_state(EncoderProcessConfig *cfg, OggEncoderState **en
     logger("Encoder", "Stream Finished message received");
     message_destroy(input_msg);
     return CLOSINGSTREAM;
-  } else if (input_msg->type == TRACKFINISHED) {
-    logger("Encoder", "Track Finished message received");
+  } else if (input_msg->type == PATCHFINISHED) {
+    logger("Encoder", "Patch Finished message received");
 
     // We need to make sure the ogg stream is emptied
     file_finished(encoder);

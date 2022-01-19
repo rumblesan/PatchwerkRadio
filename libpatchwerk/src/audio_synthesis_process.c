@@ -54,6 +54,11 @@ void *start_audio_synthesis(void *_cfg) {
 
 
   logger("AudioSynthesis", "Started");
+
+  PatchInfo *info = patch_info_create(bfromcstr("rumblesan"), bfromcstr("test patch"));
+  Message *new_patch_msg = new_patch_message(info);
+  rb_push(cfg->pipe_out, new_patch_msg);
+
   bool running = true;
   while (running) {
     if (!rb_full(cfg->pipe_out) && pushed_msgs < cfg->max_push_msgs) {
@@ -65,6 +70,9 @@ void *start_audio_synthesis(void *_cfg) {
       Message *msg = audio_buffer_message(buf);
       rb_push(cfg->pipe_out, msg);
     } else {
+      if (pushed_msgs > 0) {
+        //logger("AudioSynthesis", "Pushed %d messages", pushed_msgs);
+      }
       pushed_msgs = 0;
       sched_yield();
       nanosleep(&tim, &tim2);

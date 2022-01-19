@@ -23,7 +23,7 @@ OggEncoderState *ogg_encoder_state(long channels, long samplerate, float quality
 
 void cleanup_encoder(OggEncoderState *encoder);
 
-void set_metadata(OggEncoderState *encoder, TrackInfo *info);
+void set_metadata(OggEncoderState *encoder, PatchInfo *info);
 
 void set_headers(OggEncoderState *encoder);
 

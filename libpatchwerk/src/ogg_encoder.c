@@ -28,9 +28,9 @@ OggEncoderState *ogg_encoder_state(long channels, long samplerate, float quality
   return NULL;
 }
 
-void set_metadata(OggEncoderState *encoder, TrackInfo *info) {
+void set_metadata(OggEncoderState *encoder, PatchInfo *info) {
   vorbis_comment_add_tag(&(encoder->vc), "ENCODER", "Patchwerk Radio - LibVorbis");
-  vorbis_comment_add_tag(&(encoder->vc), "ARTIST", bdata(info->artist));
+  vorbis_comment_add_tag(&(encoder->vc), "ARTIST", bdata(info->creator));
   vorbis_comment_add_tag(&(encoder->vc), "TITLE", bdata(info->title));
 }
 

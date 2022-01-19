@@ -12,17 +12,17 @@ char *test_stream_finish_message_create() {
   return NULL;
 }
 
-char *test_track_finish_message_create() {
-  Message *message = track_finished_message();
-  mu_assert(message != NULL, "Could not create track finished message");
+char *test_patch_finish_message_create() {
+  Message *message = patch_finished_message();
+  mu_assert(message != NULL, "Could not create patch finished message");
   message_destroy(message);
   return NULL;
 }
 
-char *test_new_track_message_create() {
-  TrackInfo *track_info = track_info_create(bfromcstr("artist"), bfromcstr("title"));
-  Message *message = new_track_message(track_info);
-  mu_assert(message != NULL, "Could not create new track message");
+char *test_new_patch_message_create() {
+  PatchInfo *patch_info = patch_info_create(bfromcstr("creator"), bfromcstr("title"));
+  Message *message = new_patch_message(patch_info);
+  mu_assert(message != NULL, "Could not create new patch message");
   message_destroy(message);
   return NULL;
 }
@@ -61,8 +61,8 @@ char *all_tests() {
   mu_suite_start();
 
   mu_run_test(test_stream_finish_message_create);
-  mu_run_test(test_track_finish_message_create);
-  mu_run_test(test_new_track_message_create);
+  mu_run_test(test_patch_finish_message_create);
+  mu_run_test(test_new_patch_message_create);
   mu_run_test(test_file_chunk_message_create);
   mu_run_test(test_audio_buffer_message_create);
 
