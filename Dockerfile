@@ -5,7 +5,7 @@ MAINTAINER Guy John <patchwerk@rumblesan.com>
 RUN apt-get update
 RUN apt-get install -y clang cmake make git
 
-RUN apt-get install -y libshout3-dev libconfig-dev libvorbis-dev libsndfile-dev
+RUN apt-get install -y libshout3-dev libconfig-dev libvorbis-dev libsndfile-dev libck-dev
 ENV CC /usr/bin/clang
 
 RUN git clone https://github.com/rumblesan/bclib.git /opt/bclib
@@ -27,7 +27,7 @@ RUN cd build; cmake ..; make
 FROM debian:jessie-slim
 
 RUN apt-get update
-RUN apt-get install -y libshout3 libconfig9 libvorbis-dev libsndfile1
+RUN apt-get install -y libshout3 libconfig9 libvorbis-dev libsndfile1 libck-dev
 RUN mkdir -p /opt/patchwerk
 
 WORKDIR /opt/patchwerk

@@ -1,11 +1,13 @@
 
+#include "audio_buffer.h"
 #include "encoder_process.h"
 #include "messages.h"
 #include "minunit.h"
+#include "pipe_utils.h"
 
 #include <bclib/bstrlib.h>
 #include <bclib/dbg.h>
-#include <bclib/ringbuffer.h>
+#include <ck_ring.h>
 
 char *test_encoder_config_create() {
   int channels = 2;
@@ -13,21 +15,28 @@ char *test_encoder_config_create() {
   int format = 1;
   double quality = 0.7;
   int max_push_msgs = 10;
+  int queue_size = 256;
   int thread_sleep = 20;
   int encoder_status;
 
-  RingBuffer *pipe_in = rb_create(100);
-  RingBuffer *pipe_out = rb_create(100);
+  ck_ring_t *pipe_in = NULL;
+  ck_ring_buffer_t *pipe_in_buffer = NULL;
 
-  EncoderProcessConfig *cfg =
-      encoder_config_create(channels, samplerate, format, quality, thread_sleep,
-                            max_push_msgs, &encoder_status, pipe_in, pipe_out);
+  ck_ring_t *pipe_out = NULL;
+  ck_ring_buffer_t *pipe_out_buffer = NULL;
+
+  create_pipe(&pipe_in, &pipe_in_buffer, queue_size);
+  create_pipe(&pipe_out, &pipe_out_buffer, queue_size);
+
+  EncoderProcessConfig *cfg = encoder_config_create(
+      channels, samplerate, format, quality, thread_sleep, max_push_msgs,
+      &encoder_status, pipe_in, pipe_in_buffer, pipe_out, pipe_out_buffer);
 
   mu_assert(cfg != NULL, "Could not create encoder process config");
 
   encoder_config_destroy(cfg);
-  rb_destroy(pipe_in);
-  rb_destroy(pipe_out);
+  cleanup_pipe(pipe_in, pipe_in_buffer, "PipeIn");
+  cleanup_pipe(pipe_out, pipe_out_buffer, "PipeOut");
   return NULL;
 }
 
@@ -38,7 +47,8 @@ char *test_encoder_loop() {
   double quality = 0.7;
   int max_push_msgs = 10;
   int thread_sleep = 20;
-  int maxmsgs = 5000;
+  int maxmsgs = 64;
+  int queue_size = 256;
   int read_size = 2048;
   int encoder_status = -1;
 
@@ -48,38 +58,47 @@ char *test_encoder_loop() {
   Message *output_msg = NULL;
   AudioBuffer *audio = NULL;
 
-  RingBuffer *pipe_in = rb_create(maxmsgs + 10);
-  RingBuffer *pipe_out = rb_create(maxmsgs + 10);
+  ck_ring_t *pipe_in = NULL;
+  ck_ring_buffer_t *pipe_in_buffer = NULL;
 
-  EncoderProcessConfig *cfg =
-      encoder_config_create(channels, samplerate, format, quality, thread_sleep,
-                            max_push_msgs, &encoder_status, pipe_in, pipe_out);
+  ck_ring_t *pipe_out = NULL;
+  ck_ring_buffer_t *pipe_out_buffer = NULL;
+
+  create_pipe(&pipe_in, &pipe_in_buffer, queue_size);
+  create_pipe(&pipe_out, &pipe_out_buffer, queue_size);
+
+  EncoderProcessConfig *cfg = encoder_config_create(
+      channels, samplerate, format, quality, thread_sleep, max_push_msgs,
+      &encoder_status, pipe_in, pipe_in_buffer, pipe_out, pipe_out_buffer);
 
   mu_assert(cfg != NULL, "Could not create encoder process config");
 
   input_msg = new_patch_message(patch_info);
-  rb_push(pipe_in, input_msg);
-  for (int m = 0; m < maxmsgs; m += 1) {
+  mu_assert(ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg),
+            "Could not add first message to pipe in") for (int m = 0;
+                                                           m < maxmsgs;
+                                                           m += 1) {
     audio = audio_buffer_create(channels, read_size);
     input_msg = audio_buffer_message(audio);
-    rb_push(pipe_in, input_msg);
+    mu_assert(ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg),
+              "Could not add test message to pipe in");
   }
+  printf("pipe in size %d\n", ck_ring_size(pipe_in));
   input_msg = stream_finished_message();
-  rb_push(pipe_in, input_msg);
+  ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg);
 
   start_encoder(cfg);
 
-  mu_assert(!rb_empty(pipe_out), "Output pipe should not be empty");
+  mu_assert(ck_ring_size(pipe_out) > 0, "Output pipe should not be empty");
 
-  while (!rb_empty(pipe_out)) {
-    output_msg = rb_pop(pipe_out);
+  while (ck_ring_dequeue_spsc(pipe_out, pipe_out_buffer, &output_msg) > 0) {
     message_destroy(output_msg);
   }
 
   mu_assert(encoder_status == 0, "Encoder status should be 0");
 
-  rb_destroy(pipe_in);
-  rb_destroy(pipe_out);
+  cleanup_pipe(pipe_in, pipe_in_buffer, "PipeIn");
+  cleanup_pipe(pipe_out, pipe_out_buffer, "PipeOut");
   return NULL;
 }
 
@@ -89,9 +108,10 @@ char *test_multi_loop() {
   int format = 1;
   double quality = 0.7;
   int thread_sleep = 20;
+  int queue_size = 4096;
   int max_push_msgs = 10;
-  int patchs = 3;
-  int patch_msgs = 5000;
+  int patches = 3;
+  int patch_msgs = 50;
   int read_size = 2048;
   PatchInfo *patch_info = NULL;
   int encoder_status = -1;
@@ -99,45 +119,50 @@ char *test_multi_loop() {
   Message *output_msg = NULL;
   AudioBuffer *audio = NULL;
 
-  RingBuffer *pipe_in = rb_create(patchs * (patch_msgs + 10));
-  RingBuffer *pipe_out = rb_create(patchs * (patch_msgs + 10));
+  ck_ring_t *pipe_in = NULL;
+  ck_ring_buffer_t *pipe_in_buffer = NULL;
 
-  EncoderProcessConfig *cfg =
-      encoder_config_create(channels, samplerate, format, quality, thread_sleep,
-                            max_push_msgs, &encoder_status, pipe_in, pipe_out);
+  ck_ring_t *pipe_out = NULL;
+  ck_ring_buffer_t *pipe_out_buffer = NULL;
+
+  create_pipe(&pipe_in, &pipe_in_buffer, queue_size);
+  create_pipe(&pipe_out, &pipe_out_buffer, queue_size);
+
+  EncoderProcessConfig *cfg = encoder_config_create(
+      channels, samplerate, format, quality, thread_sleep, max_push_msgs,
+      &encoder_status, pipe_in, pipe_in_buffer, pipe_out, pipe_out_buffer);
 
   mu_assert(cfg != NULL, "Could not create encoder process config");
 
-  for (int t = 0; t < patchs; t += 1) {
+  for (int t = 0; t < patches; t += 1) {
     log_info("Patch %d", t + 1);
     patch_info = patch_info_create(bfromcstr("creator"), bfromcstr("title"));
     input_msg = new_patch_message(patch_info);
-    rb_push(pipe_in, input_msg);
+    ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg);
     for (int m = 0; m < patch_msgs; m += 1) {
       audio = audio_buffer_create(channels, read_size);
       input_msg = audio_buffer_message(audio);
-      rb_push(pipe_in, input_msg);
+      ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg);
     }
     input_msg = patch_finished_message();
-    rb_push(pipe_in, input_msg);
+    ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg);
   }
 
   input_msg = stream_finished_message();
-  rb_push(pipe_in, input_msg);
+  ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg);
 
   start_encoder(cfg);
 
-  mu_assert(!rb_empty(pipe_out), "Output pipe should not be empty");
+  mu_assert(ck_ring_size(pipe_out) > 0, "Output pipe should not be empty");
 
-  while (!rb_empty(pipe_out)) {
-    output_msg = rb_pop(pipe_out);
+  while (ck_ring_dequeue_spsc(pipe_out, pipe_out_buffer, &output_msg) > 0) {
     message_destroy(output_msg);
   }
 
   mu_assert(encoder_status == 0, "Encoder status should be 0");
 
-  rb_destroy(pipe_in);
-  rb_destroy(pipe_out);
+  cleanup_pipe(pipe_in, pipe_in_buffer, "PipeIn");
+  cleanup_pipe(pipe_out, pipe_out_buffer, "PipeOut");
   return NULL;
 }
 

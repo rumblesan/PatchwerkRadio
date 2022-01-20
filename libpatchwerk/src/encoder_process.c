@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "ck_ring.h"
+
 #include "encoder_process.h"
 
 #include "filechunk.h"
@@ -11,21 +13,25 @@
 #include "ogg_encoder.h"
 
 #include "bclib/dbg.h"
-#include "bclib/ringbuffer.h"
 
 EncoderProcessConfig *
 encoder_config_create(int channels, int samplerate, int format, double quality,
                       int thread_sleep, int max_push_msgs, int *status_var,
-                      RingBuffer *pipe_in, RingBuffer *pipe_out) {
+                      ck_ring_t *pipe_in, ck_ring_buffer_t *pipe_in_buffer,
+                      ck_ring_t *pipe_out, ck_ring_buffer_t *pipe_out_buffer) {
 
   EncoderProcessConfig *cfg = malloc(sizeof(EncoderProcessConfig));
   check_mem(cfg);
 
-  check(pipe_in != NULL, "Invalid msg in buffer passed");
+  check(pipe_in != NULL, "Invalid msg in queue passed");
   cfg->pipe_in = pipe_in;
+  check(pipe_in_buffer != NULL, "Invalid msg in ring buffer passed");
+  cfg->pipe_in_buffer = pipe_in_buffer;
 
-  check(pipe_out != NULL, "Invalid msg out buffer passed");
+  check(pipe_out != NULL, "Invalid msg out queue passed");
   cfg->pipe_out = pipe_out;
+  check(pipe_out_buffer != NULL, "Invalid msg out ring buffer passed");
+  cfg->pipe_out_buffer = pipe_out_buffer;
 
   cfg->channels = channels;
   cfg->samplerate = samplerate;
@@ -67,7 +73,10 @@ EncoderState waiting_for_file_state(EncoderProcessConfig *cfg,
     Message *output_msg = file_chunk_message(headers);
     check(output_msg != NULL, "Could not create headers message");
 
-    rb_push(cfg->pipe_out, output_msg);
+    if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer,
+                              output_msg)) {
+      err_logger("Encoder", "Could not send NewPatch message");
+    }
 
     message_destroy(input_msg);
     logger("Encoder", "Changing to encoding state");
@@ -111,7 +120,10 @@ EncoderState encoding_file_state(EncoderProcessConfig *cfg,
     } else {
       output_msg = file_chunk_message(audio_data);
       check(output_msg != NULL, "Could not create audio message");
-      rb_push(cfg->pipe_out, output_msg);
+      if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer,
+                                output_msg)) {
+        err_logger("Encoder", "Could not send AudioBuffer message");
+      }
     }
 
     message_destroy(input_msg);
@@ -139,7 +151,10 @@ EncoderState encoding_file_state(EncoderProcessConfig *cfg,
     } else {
       output_msg = file_chunk_message(audio_data);
       check(output_msg != NULL, "Could not create audio message");
-      rb_push(cfg->pipe_out, output_msg);
+      if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer,
+                                output_msg)) {
+        err_logger("Encoder", "Could not send PatchFinished message");
+      }
     }
 
     cleanup_encoder(encoder);
@@ -176,17 +191,22 @@ void *start_encoder(void *_cfg) {
   logger("Encoder", "Starting");
   *(cfg->status_var) = 1;
   bool running = true;
+
+  Message *input_msg = NULL;
+
   while (running) {
 
     if (state == CLOSINGSTREAM || state == ENCODERERROR) {
       running = false;
     }
 
-    if (!rb_empty(cfg->pipe_in) && !rb_full(cfg->pipe_out) &&
+    if (ck_ring_size(cfg->pipe_in) > 0 &&
+        ck_ring_size(cfg->pipe_out) < (ck_ring_capacity(cfg->pipe_out) - 1) &&
         pushed_msgs < cfg->max_push_msgs) {
       pushed_msgs += 1;
 
-      Message *input_msg = rb_pop(cfg->pipe_in);
+      check(ck_ring_dequeue_spsc(cfg->pipe_in, cfg->pipe_in_buffer, &input_msg),
+            "Encoder: Could not get input message from queue");
       check(input_msg != NULL, "Encoder: Could not get input message");
 
       switch (state) {

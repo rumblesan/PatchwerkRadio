@@ -2,6 +2,7 @@ include_directories(include)
 include_directories(../libpatchwerk/include)
 
 set(TEST_SOURCES
+    "src/test-audio-synthesis.c"
     "src/test-encoder.c"
     "src/test-filechunk.c"
     "src/test-messages.c"

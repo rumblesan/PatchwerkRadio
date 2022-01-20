@@ -20,7 +20,8 @@ BroadcastProcessConfig *
 broadcast_config_create(bstring host, int port, bstring user, bstring pass,
                         bstring mount, bstring name, bstring description,
                         bstring genre, bstring url, int protocol, int format,
-                        int *status_var, RingBuffer *pipe_in) {
+                        int *status_var, ck_ring_t *pipe_in,
+                        ck_ring_buffer_t *pipe_in_buffer) {
 
   BroadcastProcessConfig *cfg = malloc(sizeof(BroadcastProcessConfig));
   check_mem(cfg);
@@ -53,6 +54,8 @@ broadcast_config_create(bstring host, int port, bstring user, bstring pass,
 
   check(pipe_in != NULL, "Broadcast: Invalid pipe in");
   cfg->pipe_in = pipe_in;
+  check(pipe_in_buffer != NULL, "Broadcast: Invalid pipe in buffer");
+  cfg->pipe_in_buffer = pipe_in_buffer;
 
   return cfg;
 error:
@@ -98,12 +101,12 @@ void *start_broadcast(void *_cfg) {
 
   int startup_wait = 2;
   while (1) {
-    if (rb_size(cfg->pipe_in) > 50) {
+    if (ck_ring_size(cfg->pipe_in) > 50) {
       logger("Broadcast", "Input ready");
       break;
     } else {
       logger("Broadcast", "Waiting for input. Only %d messages in pipe",
-             rb_size(cfg->pipe_in));
+             ck_ring_size(cfg->pipe_in));
       sched_yield();
       sleep(startup_wait);
     }
@@ -160,8 +163,7 @@ void *start_broadcast(void *_cfg) {
 
   logger("Broadcast", "Connected to server...");
   while (true) {
-    input_msg = rb_pop(cfg->pipe_in);
-    if (input_msg == NULL) {
+    if (!ck_ring_dequeue_spsc(cfg->pipe_in, cfg->pipe_in_buffer, &input_msg)) {
       err_logger("Broadcast", "Could not get input message");
       nanosleep(&tim, &tim2);
       sched_yield();

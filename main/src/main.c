@@ -1,6 +1,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <sndfile.h>
@@ -11,30 +12,15 @@
 #include "encoder_process.h"
 #include "logging.h"
 #include "messages.h"
+#include "pipe_utils.h"
 
 #include "bclib/bstrlib.h"
 #include "bclib/dbg.h"
-
-int cleanup_pipe(RingBuffer *pipe, const char *pipename) {
-  Message *pipe_msg = NULL;
-  check(pipe != NULL, "Invalid pipe passed in");
-  while (!rb_empty(pipe)) {
-    pipe_msg = rb_pop(pipe);
-    check(pipe_msg != NULL, "Null message whilst emptying %s pipe", pipename);
-    message_destroy(pipe_msg);
-  }
-  rb_destroy(pipe);
-  return 0;
-error:
-  return 1;
-}
+#include "ck_ring.h"
 
 int main(int argc, char *argv[]) {
 
   RadioInputCfg *radio_config = NULL;
-
-  RingBuffer *audio2encode = NULL;
-  RingBuffer *encode2broadcast = NULL;
 
   AudioSynthesisProcessConfig *audio_synth_cfg = NULL;
   EncoderProcessConfig *encoder_cfg = NULL;
@@ -50,6 +36,12 @@ int main(int argc, char *argv[]) {
   int encoder_status = 0;
   int broadcast_status = 0;
 
+  ck_ring_t *audio2encode = NULL;
+  ck_ring_buffer_t *audio2encode_buffer = NULL;
+
+  ck_ring_t *encode2broadcast = NULL;
+  ck_ring_buffer_t *encode2broadcast_buffer = NULL;
+
   startup_log("PatchwerkRadio", "Hello, Patchwerk Radio");
 
   check(argc == 2, "Need to give config file path argument");
@@ -59,25 +51,24 @@ int main(int argc, char *argv[]) {
   radio_config = read_config(config_path);
   check(radio_config != NULL, "Could not read config file");
 
-  audio2encode = rb_create(100);
-  check(audio2encode != NULL,
-        "Couldn't create coms from audio synthesis to encoder");
-  encode2broadcast = rb_create(100);
-  check(encode2broadcast != NULL,
-        "Couldn't create coms from encoder to broadcaster");
+  check(create_pipe(&audio2encode, &audio2encode_buffer, 1024),
+        "Could not create audio to encoder ring buffer");
+  check(create_pipe(&encode2broadcast, &encode2broadcast_buffer, 1024),
+        "Could not create audio to encoder ring buffer");
 
   audio_synth_cfg = audio_synthesis_config_create(
       radio_config->puredata.patch_directory, radio_config->puredata.patch_file,
       radio_config->audio.samplerate, radio_config->audio.channels,
-      radio_config->system.max_push_messages, &audio_synth_status,
-      audio2encode);
-  check(audio_synth_cfg != NULL, "Couldn't create stretcher process config");
+      radio_config->system.max_push_messages, &audio_synth_status, audio2encode,
+      audio2encode_buffer);
+  check(audio_synth_cfg != NULL, "Couldn't create audio synth process config");
 
   encoder_cfg = encoder_config_create(
       radio_config->audio.channels, radio_config->audio.samplerate,
       SF_FORMAT_OGG | SF_FORMAT_VORBIS, radio_config->encoder.quality,
       radio_config->system.thread_sleep, radio_config->system.max_push_messages,
-      &encoder_status, audio2encode, encode2broadcast);
+      &encoder_status, audio2encode, audio2encode_buffer, encode2broadcast,
+      encode2broadcast_buffer);
   check(encoder_cfg != NULL, "Couldn't create encoder process config");
 
   broadcast_cfg = broadcast_config_create(
@@ -86,7 +77,7 @@ int main(int argc, char *argv[]) {
       radio_config->broadcast.mount, radio_config->broadcast.name,
       radio_config->broadcast.description, radio_config->broadcast.genre,
       radio_config->broadcast.url, SHOUT_PROTOCOL_HTTP, SHOUT_FORMAT_OGG,
-      &broadcast_status, encode2broadcast);
+      &broadcast_status, encode2broadcast, encode2broadcast_buffer);
   check(broadcast_cfg != NULL, "Couldn't create broadcast process config");
 
   check(!pthread_attr_init(&audio_synth_thread_attr),
@@ -96,7 +87,7 @@ int main(int argc, char *argv[]) {
         "Error setting audio synth thread detach state");
   check(!pthread_create(&audio_synth_thread, &audio_synth_thread_attr,
                         &start_audio_synthesis, audio_synth_cfg),
-        "Error creating stretcher thread");
+        "Error creating audio synth thread");
 
   check(!pthread_attr_init(&encoder_thread_attr),
         "Error setting encoder thread attributes");
@@ -132,8 +123,8 @@ int main(int argc, char *argv[]) {
       err_logger("SlowRadio", "Stopped Broadcasting!");
       break;
     }
-    as2enc_msgs = rb_size(audio2encode);
-    enc2brd_msgs = rb_size(encode2broadcast);
+    as2enc_msgs = ck_ring_size(audio2encode);
+    enc2brd_msgs = ck_ring_size(encode2broadcast);
     logger("SlowRadio", "Messages: audio synth %d encoder %d broadcast",
            as2enc_msgs, enc2brd_msgs);
   }
@@ -144,8 +135,9 @@ error:
   if (radio_config != NULL)
     destroy_config(radio_config);
 
-  cleanup_pipe(audio2encode, "Audio to Encode");
-  cleanup_pipe(encode2broadcast, "Encode to Broadcast");
+  cleanup_pipe(audio2encode, audio2encode_buffer, "Audio to Encode");
+  cleanup_pipe(encode2broadcast, encode2broadcast_buffer,
+               "Encode to Broadcast");
 
   if (audio_synth_cfg != NULL)
     audio_synthesis_config_destroy(audio_synth_cfg);

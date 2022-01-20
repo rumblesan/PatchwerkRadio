@@ -9,13 +9,14 @@
 #include "messages.h"
 
 #include <bclib/dbg.h>
-#include <bclib/ringbuffer.h>
+#include <ck_ring.h>
 #include <libpd/z_libpd.h>
 
 AudioSynthesisProcessConfig *
 audio_synthesis_config_create(bstring patch_directory, bstring patch_file,
-                              int max_push_msgs, int samplerate, int channels,
-                              int *status_var, RingBuffer *pipe_out) {
+                              int samplerate, int channels, int max_push_msgs,
+                              int *status_var, ck_ring_t *pipe_out,
+                              ck_ring_buffer_t *pipe_out_buffer) {
 
   AudioSynthesisProcessConfig *cfg =
       malloc(sizeof(AudioSynthesisProcessConfig));
@@ -28,7 +29,7 @@ audio_synthesis_config_create(bstring patch_directory, bstring patch_file,
 
   check(samplerate > 0, "AudioSynthesis: Invalid samplerate");
   cfg->samplerate = samplerate;
-  check(samplerate > 0, "AudioSynthesis: Invalid channel count");
+  check(channels > 0, "AudioSynthesis: Invalid channel count");
   cfg->channels = channels;
 
   check(max_push_msgs > 0, "AudioSynthesis: Invalid max push messages");
@@ -37,8 +38,11 @@ audio_synthesis_config_create(bstring patch_directory, bstring patch_file,
   check(status_var != NULL, "AudioSynthesis: Invalid status var");
   cfg->status_var = status_var;
 
-  check(pipe_out != NULL, "AudioSynthesis: Invalid pipe out");
+  check(pipe_out != NULL, "AudioSynthesis: Invalid pipe out ring");
   cfg->pipe_out = pipe_out;
+  check(pipe_out_buffer != NULL,
+        "AudioSynthesis: Invalid pipe out ring buffer");
+  cfg->pipe_out_buffer = pipe_out_buffer;
 
   return cfg;
 error:
@@ -94,11 +98,14 @@ void *start_audio_synthesis(void *_cfg) {
   PatchInfo *info =
       patch_info_create(bfromcstr("rumblesan"), bfromcstr("test patch"));
   Message *new_patch_msg = new_patch_message(info);
-  rb_push(cfg->pipe_out, new_patch_msg);
+  check(
+      ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer, new_patch_msg),
+      "Could not send new patch message");
 
   bool running = true;
   while (running) {
-    if (!rb_full(cfg->pipe_out) && pushed_msgs < cfg->max_push_msgs) {
+    if (ck_ring_size(cfg->pipe_out) < (ck_ring_capacity(cfg->pipe_out) - 1) &&
+        pushed_msgs < cfg->max_push_msgs) {
       pushed_msgs += 1;
 
       check(true, "stand in check");
@@ -109,7 +116,12 @@ void *start_audio_synthesis(void *_cfg) {
           out_buffer, cfg->channels, cfg->channels * blocksize);
 
       Message *msg = audio_buffer_message(out_audio);
-      rb_push(cfg->pipe_out, msg);
+      if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer, msg)) {
+        err_logger("Encoder", "Could not send Audio message");
+        err_logger("Encoder", "size %d    capacity %d",
+                   ck_ring_size(cfg->pipe_out),
+                   ck_ring_capacity(cfg->pipe_out));
+      }
     } else {
       if (pushed_msgs > 0) {
         // logger("AudioSynthesis", "Pushed %d messages", pushed_msgs);

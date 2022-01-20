@@ -1,6 +1,7 @@
 #include "audio_synthesis_process.h"
 #include "messages.h"
 #include "minunit.h"
+#include "pipe_utils.h"
 
 #include <bclib/bstrlib.h>
 #include <bclib/dbg.h>
@@ -11,19 +12,24 @@ char *test_audio_synthesis_config_create() {
   bstring patch_file = bfromcstr("my_test_patch.pd");
   int samplerate = 44100;
   int channels = 2;
+  int queue_size = 1024;
   int max_push_msgs = 10;
   int audio_synth_status;
 
-  RingBuffer *pipe_out = rb_create(100);
+  ck_ring_t *pipe_out = NULL;
+  ck_ring_buffer_t *pipe_out_buffer = NULL;
 
-  EncoderProcessConfig *cfg = audio_synthesis_config_create(
+  create_pipe(&pipe_out, &pipe_out_buffer, queue_size);
+
+  AudioSynthesisProcessConfig *cfg = audio_synthesis_config_create(
       patch_directory, patch_file, samplerate, channels, max_push_msgs,
-      &audio_synth_status, pipe_out);
+      &audio_synth_status, pipe_out, pipe_out_buffer);
 
   mu_assert(cfg != NULL, "Could not create audio synthesis process config");
 
   audio_synthesis_config_destroy(cfg);
-  rb_destroy(pipe_out);
+
+  cleanup_pipe(pipe_out, pipe_out_buffer, "pipeout");
   return NULL;
 }
 

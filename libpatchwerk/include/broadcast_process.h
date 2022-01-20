@@ -1,9 +1,8 @@
 #pragma once
 
 #include <shout/shout.h>
-
-#include "bclib/bstrlib.h"
-#include "bclib/ringbuffer.h"
+#include <ck_ring.h>
+#include <bclib/bstrlib.h>
 
 typedef struct BroadcastProcessConfig {
 
@@ -24,7 +23,8 @@ typedef struct BroadcastProcessConfig {
 
   int *status_var;
 
-  RingBuffer *pipe_in;
+  ck_ring_t *pipe_in;
+  ck_ring_buffer_t *pipe_in_buffer;
 
 } BroadcastProcessConfig;
 
@@ -32,7 +32,7 @@ BroadcastProcessConfig *
 broadcast_config_create(bstring host, int port, bstring user, bstring pass,
                         bstring mount, bstring name, bstring description,
                         bstring genre, bstring url, int protocol, int format,
-                        int *status_var, RingBuffer *pipe_in);
+                        int *status_var, ck_ring_t *pipe_in, ck_ring_buffer_t *pipe_in_buffer);
 
 void broadcast_config_destroy(BroadcastProcessConfig *cfg);
 

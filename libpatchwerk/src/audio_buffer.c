@@ -3,6 +3,7 @@
 #include <bclib/dbg.h>
 
 #include "audio_buffer.h"
+#include "logging.h"
 
 AudioBuffer *audio_buffer_create(int channels, int size) {
   AudioBuffer *audio = malloc(sizeof(AudioBuffer));

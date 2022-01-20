@@ -12,11 +12,13 @@ set(SOURCES
   "src/filechunk.c"
   "src/messages.c"
   "src/ogg_encoder.c"
+  "src/pipe_utils.c"
   )
 
 add_library(libpatchwerk ${SOURCES})
 
 target_link_libraries(libpatchwerk bclib)
+target_link_libraries(libpatchwerk ck)
 target_link_libraries(libpatchwerk shout m)
 target_link_libraries(libpatchwerk config)
 target_link_libraries(libpatchwerk vorbis vorbisfile ogg vorbisenc)
