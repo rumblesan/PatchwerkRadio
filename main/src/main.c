@@ -12,6 +12,7 @@
 #include "encoder_process.h"
 #include "logging.h"
 #include "messages.h"
+#include "patch_chooser_process.h"
 #include "pipe_utils.h"
 
 #include "bclib/bstrlib.h"
@@ -22,19 +23,26 @@ int main(int argc, char *argv[]) {
 
   RadioInputCfg *radio_config = NULL;
 
+  PatchChooserProcessConfig *patch_chooser_cfg = NULL;
   AudioSynthesisProcessConfig *audio_synth_cfg = NULL;
   EncoderProcessConfig *encoder_cfg = NULL;
   BroadcastProcessConfig *broadcast_cfg = NULL;
 
+  pthread_t patch_chooser_thread;
+  pthread_attr_t patch_chooser_thread_attr;
   pthread_t audio_synth_thread;
   pthread_attr_t audio_synth_thread_attr;
   pthread_t encoder_thread;
   pthread_attr_t encoder_thread_attr;
   pthread_t broadcast_thread;
   pthread_attr_t broadcast_thread_attr;
+  int patch_chooser_status = 0;
   int audio_synth_status = 0;
   int encoder_status = 0;
   int broadcast_status = 0;
+
+  ck_ring_t *chooser2audio = NULL;
+  ck_ring_buffer_t *chooser2audio_buffer = NULL;
 
   ck_ring_t *audio2encode = NULL;
   ck_ring_buffer_t *audio2encode_buffer = NULL;
@@ -51,10 +59,18 @@ int main(int argc, char *argv[]) {
   radio_config = read_config(config_path);
   check(radio_config != NULL, "Could not read config file");
 
+  check(create_pipe(&chooser2audio, &chooser2audio_buffer, 1024),
+        "Could not create patch chooser to audio ring buffer");
   check(create_pipe(&audio2encode, &audio2encode_buffer, 1024),
         "Could not create audio to encoder ring buffer");
   check(create_pipe(&encode2broadcast, &encode2broadcast_buffer, 1024),
         "Could not create audio to encoder ring buffer");
+
+  patch_chooser_cfg = patch_chooser_config_create(
+      radio_config->chooser.pattern, 10.0, -1, 10, &patch_chooser_status,
+      chooser2audio, chooser2audio_buffer);
+  check(patch_chooser_cfg != NULL,
+        "Couldn't create patch chooser process config");
 
   audio_synth_cfg = audio_synthesis_config_create(
       radio_config->puredata.patch_directory, radio_config->puredata.patch_file,
@@ -79,6 +95,15 @@ int main(int argc, char *argv[]) {
       radio_config->broadcast.url, SHOUT_PROTOCOL_HTTP, SHOUT_FORMAT_OGG,
       &broadcast_status, encode2broadcast, encode2broadcast_buffer);
   check(broadcast_cfg != NULL, "Couldn't create broadcast process config");
+
+  check(!pthread_attr_init(&patch_chooser_thread_attr),
+        "Error setting patch chooser thread attributes");
+  check(!pthread_attr_setdetachstate(&patch_chooser_thread_attr,
+                                     PTHREAD_CREATE_DETACHED),
+        "Error setting patch chooser thread detach state");
+  check(!pthread_create(&patch_chooser_thread, &patch_chooser_thread_attr,
+                        &start_patch_chooser, patch_chooser_cfg),
+        "Error creating audio synth thread");
 
   check(!pthread_attr_init(&audio_synth_thread_attr),
         "Error setting audio synth thread attributes");
@@ -111,6 +136,10 @@ int main(int argc, char *argv[]) {
   int enc2brd_msgs = 0;
   while (1) {
     sleep(radio_config->system.stats_interval);
+    if (patch_chooser_status == 0) {
+      err_logger("SlowRadio", "Stopped Patch Chooser!");
+      break;
+    }
     if (audio_synth_status == 0) {
       err_logger("SlowRadio", "Stopped Synthesising!");
       break;
@@ -135,10 +164,13 @@ error:
   if (radio_config != NULL)
     destroy_config(radio_config);
 
+  cleanup_pipe(chooser2audio, chooser2audio_buffer, "Chooser to Audio");
   cleanup_pipe(audio2encode, audio2encode_buffer, "Audio to Encode");
   cleanup_pipe(encode2broadcast, encode2broadcast_buffer,
                "Encode to Broadcast");
 
+  if (patch_chooser_cfg != NULL)
+    patch_chooser_config_destroy(patch_chooser_cfg);
   if (audio_synth_cfg != NULL)
     audio_synthesis_config_destroy(audio_synth_cfg);
   if (encoder_cfg != NULL)

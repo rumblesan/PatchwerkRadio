@@ -5,16 +5,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <ck_ring.h>
 #include <shout/shout.h>
+
+#include <bclib/bstrlib.h>
+#include <bclib/dbg.h>
 
 #include "broadcast_process.h"
 
 #include "logging.h"
 #include "messages.h"
-
-#include "bclib/bstrlib.h"
-#include "bclib/dbg.h"
-#include "bclib/ringbuffer.h"
 
 BroadcastProcessConfig *
 broadcast_config_create(bstring host, int port, bstring user, bstring pass,

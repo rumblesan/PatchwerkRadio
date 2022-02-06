@@ -13,6 +13,8 @@ set(SOURCES
   "src/messages.c"
   "src/ogg_encoder.c"
   "src/pipe_utils.c"
+  "src/file_utils.c"
+  "src/patch_chooser_process.c"
   )
 
 add_library(libpatchwerk ${SOURCES})

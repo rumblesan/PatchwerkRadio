@@ -7,6 +7,10 @@ typedef struct AudioInputCfg {
   int samplerate;
 } AudioInputCfg;
 
+typedef struct PatchChooserCfg {
+  bstring pattern;
+} PatchChooserCfg;
+
 typedef struct PureDataInputCfg {
   bstring patch_directory;
   bstring patch_file;
@@ -36,6 +40,7 @@ typedef struct SystemInputCfg {
 
 typedef struct RadioInputCfg {
   PureDataInputCfg puredata;
+  PatchChooserCfg chooser;
   AudioInputCfg audio;
   SystemInputCfg system;
   EncoderInputCfg encoder;

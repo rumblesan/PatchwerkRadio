@@ -6,6 +6,7 @@ set(TEST_SOURCES
     "src/test-encoder.c"
     "src/test-filechunk.c"
     "src/test-messages.c"
+    "src/test-patch-chooser.c"
     "src/test-config.c"
     )
 

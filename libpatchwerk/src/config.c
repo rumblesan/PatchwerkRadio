@@ -38,6 +38,14 @@ RadioInputCfg *read_config(char *config_path) {
                                       &(radio_config->audio.samplerate)),
         "Could not read audio settings");
 
+  // Patch Chooser config
+  config_setting_t *choosersetting = config_lookup(cfg, "patchchooser");
+  check(choosersetting != NULL &&
+            config_setting_lookup_bstring(choosersetting, "pattern",
+                                          &(radio_config->chooser.pattern)),
+        "Could not read patch chooser settings");
+
+  // PureData config
   config_setting_t *pdsetting = config_lookup(cfg, "puredata");
   check(pdsetting != NULL &&
             config_setting_lookup_bstring(
@@ -106,6 +114,7 @@ void destroy_config(RadioInputCfg *cfg) {
   check(cfg != NULL, "Invalid config");
   bdestroy(cfg->puredata.patch_directory);
   bdestroy(cfg->puredata.patch_file);
+  bdestroy(cfg->chooser.pattern);
 
   bdestroy(cfg->broadcast.host);
   bdestroy(cfg->broadcast.source);
