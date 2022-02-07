@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <sndfile.h>
@@ -51,6 +52,9 @@ int main(int argc, char *argv[]) {
   ck_ring_buffer_t *encode2broadcast_buffer = NULL;
 
   startup_log("PatchwerkRadio", "Hello, Patchwerk Radio");
+  time_t t = time(NULL);
+  logger("PatchwerkRadio", "%s", asctime(gmtime(&t)));
+  srand((unsigned)t);
 
   check(argc == 2, "Need to give config file path argument");
 
