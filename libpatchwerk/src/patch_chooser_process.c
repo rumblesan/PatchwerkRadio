@@ -77,10 +77,11 @@ void *start_patch_chooser(void *_cfg) {
     elapsed_seconds = ((double)now - start) / CLOCKS_PER_SEC;
     if (elapsed_seconds > cfg->thread_sleep_seconds &&
         ck_ring_size(cfg->pipe_out) < (ck_ring_capacity(cfg->pipe_out) - 1)) {
-      bstring next_patch_path = get_random_file(cfg->pattern);
-      logger("PatchChooser", "next patch: %s", bdata(next_patch_path));
-      PatchInfo *pi = patch_info_create(bfromcstr("artist"), next_patch_path,
-                                        next_patch_path);
+      bstring next_patch_path = get_random_patch(cfg->pattern);
+      logger("PatchChooser", "next patch path %s", bdata(next_patch_path));
+      PatchInfo *pi = path_to_patchinfo(next_patch_path);
+      logger("PatchChooser", "next patch: %s - %s", bdata(pi->creator),
+             bdata(pi->title));
       Message *msg = load_patch_message(pi);
       if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer, msg)) {
         err_logger("PatchChooser", "Could not send New Patch message");

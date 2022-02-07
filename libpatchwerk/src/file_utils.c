@@ -18,7 +18,7 @@ bool is_regular_file(const char *path) {
   return S_ISREG(path_stat.st_mode);
 }
 
-bstring get_random_file(bstring pattern) {
+bstring get_random_patch(bstring pattern) {
   glob_t globbuf;
 
   List *filelist = NULL;
@@ -48,4 +48,22 @@ error:
   if (filelist != NULL)
     list_destroy(filelist);
   return bfromcstr("");
+}
+
+PatchInfo *path_to_patchinfo(bstring path) {
+  struct bstrList *l = bsplit(path, '/');
+
+  if (l->qty < 3) {
+    bstrListDestroy(l);
+    return NULL;
+  }
+
+  bstring artist = bstrcpy(l->entry[l->qty - 3]);
+  bstring name = bstrcpy(l->entry[l->qty - 2]);
+
+  PatchInfo *pi = patch_info_create(artist, name, path);
+
+  bstrListDestroy(l);
+
+  return pi;
 }
