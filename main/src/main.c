@@ -59,11 +59,11 @@ int main(int argc, char *argv[]) {
   radio_config = read_config(config_path);
   check(radio_config != NULL, "Could not read config file");
 
-  check(create_pipe(&chooser2audio, &chooser2audio_buffer, 1024),
+  check(create_pipe(&chooser2audio, &chooser2audio_buffer, 16),
         "Could not create patch chooser to audio ring buffer");
-  check(create_pipe(&audio2encode, &audio2encode_buffer, 1024),
+  check(create_pipe(&audio2encode, &audio2encode_buffer, 64),
         "Could not create audio to encoder ring buffer");
-  check(create_pipe(&encode2broadcast, &encode2broadcast_buffer, 1024),
+  check(create_pipe(&encode2broadcast, &encode2broadcast_buffer, 64),
         "Could not create audio to encoder ring buffer");
 
   patch_chooser_cfg = patch_chooser_config_create(
@@ -73,10 +73,9 @@ int main(int argc, char *argv[]) {
         "Couldn't create patch chooser process config");
 
   audio_synth_cfg = audio_synthesis_config_create(
-      radio_config->puredata.patch_directory, radio_config->puredata.patch_file,
       radio_config->audio.samplerate, radio_config->audio.channels,
-      radio_config->system.max_push_messages, &audio_synth_status, audio2encode,
-      audio2encode_buffer);
+      radio_config->system.max_push_messages, &audio_synth_status,
+      chooser2audio, chooser2audio_buffer, audio2encode, audio2encode_buffer);
   check(audio_synth_cfg != NULL, "Couldn't create audio synth process config");
 
   encoder_cfg = encoder_config_create(

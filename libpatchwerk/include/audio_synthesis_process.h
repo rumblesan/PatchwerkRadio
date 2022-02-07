@@ -7,15 +7,18 @@
 
 typedef struct AudioSynthesisProcessConfig {
 
-  bstring patch_directory;
-  bstring patch_file;
-
   int samplerate;
   int channels;
 
+  bool pd_ready;
+  void *patch_file;
+  int blocksize;
+
   int max_push_msgs;
   int *status_var;
-  void *pd_file;
+
+  ck_ring_buffer_t *pipe_in_buffer;
+  ck_ring_t *pipe_in;
 
   ck_ring_t *pipe_out;
   ck_ring_buffer_t *pipe_out_buffer;
@@ -23,9 +26,10 @@ typedef struct AudioSynthesisProcessConfig {
 } AudioSynthesisProcessConfig;
 
 AudioSynthesisProcessConfig *
-audio_synthesis_config_create(bstring patch_directory, bstring patch_file,
+audio_synthesis_config_create(
                               int samplerate, int channels, int max_push_msgs,
                               int *status_var,
+                              ck_ring_t *pipe_in, ck_ring_buffer_t *pipe_in_buffer,
                               ck_ring_t *pipe_out, ck_ring_buffer_t *pipe_out_buffer
                               );
 

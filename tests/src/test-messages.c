@@ -18,10 +18,19 @@ char *test_patch_finish_message_create() {
   return NULL;
 }
 
+char *test_load_patch_message_create() {
+  PatchInfo *patch_info = patch_info_create(
+      bfromcstr("creator"), bfromcstr("title"), bfromcstr("path"));
+  Message *message = load_patch_message(patch_info);
+  mu_assert(message != NULL, "Could not create load patch message");
+  message_destroy(message);
+  return NULL;
+}
+
 char *test_new_patch_message_create() {
-  PatchInfo *patch_info =
-      patch_info_create(bfromcstr("creator"), bfromcstr("title"));
-  Message *message = new_patch_message(patch_info);
+  CreatorInfo *creator_info =
+      creator_info_create(bfromcstr("creator"), bfromcstr("title"));
+  Message *message = new_patch_message(creator_info);
   mu_assert(message != NULL, "Could not create new patch message");
   message_destroy(message);
   return NULL;
@@ -61,6 +70,7 @@ char *all_tests() {
 
   mu_run_test(test_stream_finish_message_create);
   mu_run_test(test_patch_finish_message_create);
+  mu_run_test(test_load_patch_message_create);
   mu_run_test(test_new_patch_message_create);
   mu_run_test(test_file_chunk_message_create);
   mu_run_test(test_audio_buffer_message_create);

@@ -52,8 +52,8 @@ char *test_encoder_loop() {
   int read_size = 2048;
   int encoder_status = -1;
 
-  PatchInfo *patch_info =
-      patch_info_create(bfromcstr("creator"), bfromcstr("title"));
+  CreatorInfo *creator_info =
+      creator_info_create(bfromcstr("creator"), bfromcstr("title"));
   Message *input_msg = NULL;
   Message *output_msg = NULL;
   AudioBuffer *audio = NULL;
@@ -73,7 +73,7 @@ char *test_encoder_loop() {
 
   mu_assert(cfg != NULL, "Could not create encoder process config");
 
-  input_msg = new_patch_message(patch_info);
+  input_msg = new_patch_message(creator_info);
   mu_assert(ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg),
             "Could not add first message to pipe in") for (int m = 0;
                                                            m < maxmsgs;
@@ -113,7 +113,7 @@ char *test_multi_loop() {
   int patches = 3;
   int patch_msgs = 50;
   int read_size = 2048;
-  PatchInfo *patch_info = NULL;
+  CreatorInfo *creator_info = NULL;
   int encoder_status = -1;
   Message *input_msg = NULL;
   Message *output_msg = NULL;
@@ -136,8 +136,9 @@ char *test_multi_loop() {
 
   for (int t = 0; t < patches; t += 1) {
     log_info("Patch %d", t + 1);
-    patch_info = patch_info_create(bfromcstr("creator"), bfromcstr("title"));
-    input_msg = new_patch_message(patch_info);
+    creator_info =
+        creator_info_create(bfromcstr("creator"), bfromcstr("title"));
+    input_msg = new_patch_message(creator_info);
     ck_ring_enqueue_spsc(pipe_in, pipe_in_buffer, input_msg);
     for (int m = 0; m < patch_msgs; m += 1) {
       audio = audio_buffer_create(channels, read_size);

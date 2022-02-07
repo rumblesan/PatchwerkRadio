@@ -64,17 +64,32 @@ void *start_patch_chooser(void *_cfg) {
 
   clock_t start, now;
   double elapsed_seconds;
-  start = clock();
+  start = -(cfg->thread_sleep_seconds *
+            CLOCKS_PER_SEC); // start at negative so we immediately
+                             // load a new patch
 
   logger("PatchChooser", "Started");
-  bstring new_patch = NULL;
+
+  check(true, "stand in check");
 
   while (true) {
     now = clock();
     elapsed_seconds = ((double)now - start) / CLOCKS_PER_SEC;
-    if (elapsed_seconds > cfg->thread_sleep_seconds) {
-      new_patch = get_random_file(cfg->pattern);
-      logger("PatchChooser", "next patch: %s", bdata(new_patch));
+    if (elapsed_seconds > cfg->thread_sleep_seconds &&
+        ck_ring_size(cfg->pipe_out) < (ck_ring_capacity(cfg->pipe_out) - 1)) {
+      bstring next_patch_path = get_random_file(cfg->pattern);
+      logger("PatchChooser", "next patch: %s", bdata(next_patch_path));
+      PatchInfo *pi = patch_info_create(bfromcstr("artist"), next_patch_path,
+                                        next_patch_path);
+      Message *msg = load_patch_message(pi);
+      if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer, msg)) {
+        err_logger("PatchChooser", "Could not send New Patch message");
+        err_logger("PatchChooser", "size %d    capacity %d",
+                   ck_ring_size(cfg->pipe_out),
+                   ck_ring_capacity(cfg->pipe_out));
+        message_destroy(msg);
+      }
+
       start = clock();
     }
     sched_yield();
