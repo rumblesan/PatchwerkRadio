@@ -11,6 +11,7 @@ typedef enum {
   AS_WAITING_FOR_PATCH,
   AS_PLAYING,
   AS_FADING_OUT,
+  AS_FADING_IN,
   AS_LOADING_NEXT_PATCH,
 } AudioSynthesisState;
 

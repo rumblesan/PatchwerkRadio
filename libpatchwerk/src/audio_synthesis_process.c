@@ -26,7 +26,7 @@ AudioSynthesisProcessConfig *audio_synthesis_config_create(
   cfg->blocksize = 0;
 
   cfg->fadetime = fadetime;
-  cfg->fadeamount = 1.0;
+  cfg->fadeamount = 0.0;
   cfg->fadedelta = (1.0 / ((double)cfg->fadetime * (double)samplerate));
   cfg->state = AS_WAITING_FOR_PATCH;
   cfg->next_patch_msg = NULL;
@@ -117,7 +117,7 @@ int load_next_patch(AudioSynthesisProcessConfig *cfg) {
 
   message_destroy(cfg->next_patch_msg);
   cfg->next_patch_msg = NULL;
-  cfg->state = AS_PLAYING;
+  cfg->state = AS_FADING_IN;
 
   return 0;
 error:
@@ -189,8 +189,26 @@ void fade_audio_out(AudioSynthesisProcessConfig *cfg, AudioBuffer *audio) {
   }
   cfg->fadeamount = fadeamount;
   if (cfg->fadeamount <= 0.0) {
-    cfg->fadeamount = 1.0;
+    cfg->fadeamount = 0.0;
     cfg->state = AS_LOADING_NEXT_PATCH;
+    logger("AudioSynthesis", "loading next patch");
+  }
+}
+
+void fade_audio_in(AudioSynthesisProcessConfig *cfg, AudioBuffer *audio) {
+  double delta = cfg->fadedelta;
+  double fadeamount = cfg->fadeamount;
+  for (int j = 0; j < audio->size; j++) {
+    for (int i = 0; i < audio->channels; i++) {
+      audio->buffers[i][j] = audio->buffers[i][j] * fadeamount;
+    }
+    fadeamount += delta;
+  }
+  cfg->fadeamount = fadeamount;
+  if (cfg->fadeamount >= 1.0) {
+    cfg->fadeamount = 1.0;
+    cfg->state = AS_PLAYING;
+    logger("AudioSynthesis", "finished fading in");
   }
 }
 
@@ -234,6 +252,8 @@ void *start_audio_synthesis(void *_cfg) {
 
       if (cfg->state == AS_FADING_OUT) {
         fade_audio_out(cfg, out_audio);
+      } else if (cfg->state == AS_FADING_IN) {
+        fade_audio_in(cfg, out_audio);
       }
 
       Message *msg = audio_buffer_message(out_audio);
