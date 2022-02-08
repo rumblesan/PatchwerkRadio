@@ -13,18 +13,23 @@
 #include <libpd/z_libpd.h>
 
 AudioSynthesisProcessConfig *audio_synthesis_config_create(
-    int samplerate, int channels, int max_push_msgs, int *status_var,
-    ck_ring_t *pipe_in, ck_ring_buffer_t *pipe_in_buffer, ck_ring_t *pipe_out,
-    ck_ring_buffer_t *pipe_out_buffer) {
+    int samplerate, int channels, double fadetime, int max_push_msgs,
+    int *status_var, ck_ring_t *pipe_in, ck_ring_buffer_t *pipe_in_buffer,
+    ck_ring_t *pipe_out, ck_ring_buffer_t *pipe_out_buffer) {
 
   AudioSynthesisProcessConfig *cfg =
       malloc(sizeof(AudioSynthesisProcessConfig));
   check_mem(cfg);
 
-  cfg->pd_ready = false;
   cfg->patch_file = NULL;
 
   cfg->blocksize = 0;
+
+  cfg->fadetime = fadetime;
+  cfg->fadeamount = 1.0;
+  cfg->fadedelta = (1.0 / ((double)cfg->fadetime * (double)samplerate));
+  cfg->state = AS_WAITING_FOR_PATCH;
+  cfg->next_patch_msg = NULL;
 
   check(samplerate > 0, "AudioSynthesis: Invalid samplerate");
   cfg->samplerate = samplerate;
@@ -54,7 +59,7 @@ error:
 }
 
 void audio_synthesis_config_destroy(AudioSynthesisProcessConfig *cfg) {
-  check(cfg != NULL, "AudioSynthesis: Invalid config");
+  check(cfg != NULL, "Invalid config");
   free(cfg);
   return;
 error:
@@ -62,15 +67,30 @@ error:
 }
 
 int handle_input_message(AudioSynthesisProcessConfig *cfg, Message *input_msg) {
-  check(cfg != NULL, "AudioSynthesis: Invalid config");
-  check(input_msg != NULL, "AudioSynthesis: Invalid input message");
+  logger("AudioSynthesis", "Incoming message");
+  check(cfg != NULL, "Invalid config");
+  check(input_msg != NULL, "Invalid input message");
 
   if (input_msg->type != LOADPATCH) {
     err_logger("AudioSynthesis", "Can't handle message type %s",
                msg_type(input_msg));
+    message_destroy(input_msg);
     return 0;
   }
 
+  logger("AudioSynthesis", "Saved load patch message");
+  cfg->next_patch_msg = input_msg;
+  cfg->state = AS_FADING_OUT;
+
+  return 0;
+error:
+  if (input_msg != NULL) {
+    message_destroy(input_msg);
+  }
+  return 1;
+}
+
+int load_next_patch(AudioSynthesisProcessConfig *cfg) {
   if (cfg->patch_file != NULL) {
     libpd_closefile(cfg->patch_file);
     // only send patch finished message if there was a previous patch loaded
@@ -80,7 +100,7 @@ int handle_input_message(AudioSynthesisProcessConfig *cfg, Message *input_msg) {
           "Could not send patch finished message");
   }
 
-  PatchInfo *pinfo = input_msg->payload;
+  PatchInfo *pinfo = cfg->next_patch_msg->payload;
   logger("AudioSynthesis", "Loading file %s", bdata(pinfo->filepath));
   void *pd_file = libpd_openfile(bdata(pinfo->filepath), "./");
   check(pd_file != NULL, "Could not open pd patch: ./%s",
@@ -90,17 +110,21 @@ int handle_input_message(AudioSynthesisProcessConfig *cfg, Message *input_msg) {
   CreatorInfo *info =
       creator_info_create(bstrcpy(pinfo->creator), bstrcpy(pinfo->title));
   Message *new_patch_msg = new_patch_message(info);
+  logger("AudioSynthesis", "Sent new patch message");
   check(
       ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer, new_patch_msg),
       "Could not send new patch message");
 
-  message_destroy(input_msg);
+  message_destroy(cfg->next_patch_msg);
+  cfg->next_patch_msg = NULL;
+  cfg->state = AS_PLAYING;
 
   return 0;
 error:
-  if (input_msg != NULL) {
-    message_destroy(input_msg);
+  if (cfg->next_patch_msg != NULL) {
+    message_destroy(cfg->next_patch_msg);
   }
+  cfg->state = AS_WAITING_FOR_PATCH;
   return 1;
 }
 
@@ -133,13 +157,15 @@ int wait_for_pd_ready(AudioSynthesisProcessConfig *cfg) {
 
   Message *input_msg = NULL;
 
-  while (!cfg->pd_ready) {
+  bool waiting = true;
+  while (waiting) {
 
     if (ck_ring_size(cfg->pipe_in) > 0 &&
         ck_ring_dequeue_spsc(cfg->pipe_in, cfg->pipe_in_buffer, &input_msg)) {
       if (handle_input_message(cfg, input_msg) == 0) {
         logger("AudioSynthesis", "first patch loaded");
-        cfg->pd_ready = 1;
+        load_next_patch(cfg);
+        waiting = false;
       }
     } else {
       sched_yield();
@@ -150,6 +176,22 @@ int wait_for_pd_ready(AudioSynthesisProcessConfig *cfg) {
   return 0;
 error:
   return 1;
+}
+
+void fade_audio_out(AudioSynthesisProcessConfig *cfg, AudioBuffer *audio) {
+  double delta = cfg->fadedelta;
+  double fadeamount = cfg->fadeamount;
+  for (int j = 0; j < audio->size; j++) {
+    for (int i = 0; i < audio->channels; i++) {
+      audio->buffers[i][j] = audio->buffers[i][j] * fadeamount;
+    }
+    fadeamount -= delta;
+  }
+  cfg->fadeamount = fadeamount;
+  if (cfg->fadeamount <= 0.0) {
+    cfg->fadeamount = 1.0;
+    cfg->state = AS_LOADING_NEXT_PATCH;
+  }
 }
 
 void *start_audio_synthesis(void *_cfg) {
@@ -185,30 +227,31 @@ void *start_audio_synthesis(void *_cfg) {
         pushed_msgs < cfg->max_push_msgs) {
       pushed_msgs += 1;
 
-      check(true, "stand in check");
-
-      int audio_check = libpd_process_float(1, in_buffer, out_buffer);
-      check(audio_check == 0, "PD could not create audio");
+      check(!libpd_process_float(1, in_buffer, out_buffer),
+            "PD could not create audio");
       AudioBuffer *out_audio = audio_buffer_from_float(
           out_buffer, cfg->channels, cfg->channels * cfg->blocksize);
 
+      if (cfg->state == AS_FADING_OUT) {
+        fade_audio_out(cfg, out_audio);
+      }
+
       Message *msg = audio_buffer_message(out_audio);
       if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer, msg)) {
-        // TODO memory leak!?
-        err_logger("Encoder", "Could not send Audio message");
-        err_logger("Encoder", "size %d    capacity %d",
-                   ck_ring_size(cfg->pipe_out),
-                   ck_ring_capacity(cfg->pipe_out));
+        err_logger("AudioSynthesis", "Could not send Audio message");
+        message_destroy(msg);
       }
+
+      if (cfg->state == AS_LOADING_NEXT_PATCH) {
+        logger("AudioSynthesis", "loading next patch");
+        load_next_patch(cfg);
+      }
+
     } else if (ck_ring_size(cfg->pipe_in) > 0) {
       check(ck_ring_dequeue_spsc(cfg->pipe_in, cfg->pipe_in_buffer, &input_msg),
-            "Encoder: Could not get input message from queue");
-      logger("AudioSynthesis", "Incoming message");
+            "Could not get input message from queue");
       handle_input_message(cfg, input_msg);
     } else {
-      if (pushed_msgs > 0) {
-        // logger("AudioSynthesis", "Pushed %d messages", pushed_msgs);
-      }
       pushed_msgs = 0;
       sched_yield();
       nanosleep(&tim, &tim2);

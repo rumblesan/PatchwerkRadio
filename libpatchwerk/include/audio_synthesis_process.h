@@ -5,14 +5,28 @@
 
 #include "bclib/bstrlib.h"
 
+#include "messages.h"
+
+typedef enum {
+  AS_WAITING_FOR_PATCH,
+  AS_PLAYING,
+  AS_FADING_OUT,
+  AS_LOADING_NEXT_PATCH,
+} AudioSynthesisState;
+
 typedef struct AudioSynthesisProcessConfig {
 
   int samplerate;
   int channels;
 
-  bool pd_ready;
   void *patch_file;
   int blocksize;
+
+  double fadetime;
+  double fadeamount;
+  double fadedelta;
+  AudioSynthesisState state;
+  Message *next_patch_msg;
 
   int max_push_msgs;
   int *status_var;
@@ -27,8 +41,8 @@ typedef struct AudioSynthesisProcessConfig {
 
 AudioSynthesisProcessConfig *
 audio_synthesis_config_create(
-                              int samplerate, int channels, int max_push_msgs,
-                              int *status_var,
+                              int samplerate, int channels, double fadetime,
+                              int max_push_msgs, int *status_var,
                               ck_ring_t *pipe_in, ck_ring_buffer_t *pipe_in_buffer,
                               ck_ring_t *pipe_out, ck_ring_buffer_t *pipe_out_buffer
                               );

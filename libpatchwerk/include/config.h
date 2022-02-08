@@ -5,6 +5,7 @@
 typedef struct AudioInputCfg {
   int channels;
   int samplerate;
+  double fadetime;
 } AudioInputCfg;
 
 typedef struct PatchChooserCfg {

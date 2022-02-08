@@ -35,7 +35,9 @@ RadioInputCfg *read_config(char *config_path) {
             config_setting_lookup_int(audiosetting, "channels",
                                       &(radio_config->audio.channels)) &&
             config_setting_lookup_int(audiosetting, "samplerate",
-                                      &(radio_config->audio.samplerate)),
+                                      &(radio_config->audio.samplerate)) &&
+            config_setting_lookup_float(audiosetting, "fadetime",
+                                        &(radio_config->audio.fadetime)),
         "Could not read audio settings");
 
   // Patch Chooser config

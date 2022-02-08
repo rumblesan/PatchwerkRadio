@@ -78,8 +78,9 @@ int main(int argc, char *argv[]) {
 
   audio_synth_cfg = audio_synthesis_config_create(
       radio_config->audio.samplerate, radio_config->audio.channels,
-      radio_config->system.max_push_messages, &audio_synth_status,
-      chooser2audio, chooser2audio_buffer, audio2encode, audio2encode_buffer);
+      radio_config->audio.fadetime, radio_config->system.max_push_messages,
+      &audio_synth_status, chooser2audio, chooser2audio_buffer, audio2encode,
+      audio2encode_buffer);
   check(audio_synth_cfg != NULL, "Couldn't create audio synth process config");
 
   encoder_cfg = encoder_config_create(
