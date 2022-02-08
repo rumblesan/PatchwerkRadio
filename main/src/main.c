@@ -65,9 +65,9 @@ int main(int argc, char *argv[]) {
 
   check(create_pipe(&chooser2audio, &chooser2audio_buffer, 16),
         "Could not create patch chooser to audio ring buffer");
-  check(create_pipe(&audio2encode, &audio2encode_buffer, 64),
+  check(create_pipe(&audio2encode, &audio2encode_buffer, 32),
         "Could not create audio to encoder ring buffer");
-  check(create_pipe(&encode2broadcast, &encode2broadcast_buffer, 64),
+  check(create_pipe(&encode2broadcast, &encode2broadcast_buffer, 32),
         "Could not create audio to encoder ring buffer");
 
   patch_chooser_cfg = patch_chooser_config_create(

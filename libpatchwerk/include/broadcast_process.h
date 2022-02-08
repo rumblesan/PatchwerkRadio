@@ -22,6 +22,8 @@ typedef struct BroadcastProcessConfig {
   int protocol;
   int format;
 
+  int msg_buffer_count;
+
   int *status_var;
 
   ck_ring_t *pipe_in;

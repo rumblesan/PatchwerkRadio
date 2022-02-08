@@ -50,6 +50,8 @@ broadcast_config_create(bstring host, int port, bstring user, bstring pass,
   cfg->protocol = protocol;
   cfg->format = format;
 
+  cfg->msg_buffer_count = 20;
+
   cfg->status_var = status_var;
 
   check(pipe_in != NULL, "Broadcast: Invalid pipe in");
@@ -101,7 +103,7 @@ void *start_broadcast(void *_cfg) {
 
   int startup_wait = 2;
   while (1) {
-    if (ck_ring_size(cfg->pipe_in) > 50) {
+    if (ck_ring_size(cfg->pipe_in) > cfg->msg_buffer_count) {
       logger("Broadcast", "Input ready");
       break;
     } else {
