@@ -136,6 +136,7 @@ int main(int argc, char *argv[]) {
                         &start_broadcast, broadcast_cfg),
         "Error creating broadcasting thread");
 
+  int ch2as_msgs = 0;
   int as2enc_msgs = 0;
   int enc2brd_msgs = 0;
   while (1) {
@@ -156,10 +157,12 @@ int main(int argc, char *argv[]) {
       err_logger("SlowRadio", "Stopped Broadcasting!");
       break;
     }
+    ch2as_msgs = ck_ring_size(chooser2audio);
     as2enc_msgs = ck_ring_size(audio2encode);
     enc2brd_msgs = ck_ring_size(encode2broadcast);
-    logger("SlowRadio", "Messages: audio synth %d encoder %d broadcast",
-           as2enc_msgs, enc2brd_msgs);
+    logger("SlowRadio",
+           "Messages: chooser %d audio synth %d encoder %d broadcast",
+           ch2as_msgs, as2enc_msgs, enc2brd_msgs);
   }
 
   logger("SlowRadio", "Stopping");
