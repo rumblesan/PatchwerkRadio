@@ -71,7 +71,9 @@ int main(int argc, char *argv[]) {
         "Could not create audio to encoder ring buffer");
 
   patch_chooser_cfg = patch_chooser_config_create(
-      radio_config->chooser.pattern, 10.0, -1, 10, &patch_chooser_status,
+      radio_config->chooser.pattern, radio_config->chooser.play_time,
+      radio_config->chooser.filenumber,
+      radio_config->chooser.thread_sleep_seconds, &patch_chooser_status,
       chooser2audio, chooser2audio_buffer);
   check(patch_chooser_cfg != NULL,
         "Couldn't create patch chooser process config");

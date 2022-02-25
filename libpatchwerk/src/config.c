@@ -44,7 +44,14 @@ RadioInputCfg *read_config(char *config_path) {
   config_setting_t *choosersetting = config_lookup(cfg, "patchchooser");
   check(choosersetting != NULL &&
             config_setting_lookup_bstring(choosersetting, "pattern",
-                                          &(radio_config->chooser.pattern)),
+                                          &(radio_config->chooser.pattern)) &&
+            config_setting_lookup_int(choosersetting, "play_time",
+                                      &(radio_config->chooser.play_time)) &&
+            config_setting_lookup_int(choosersetting, "filenumber",
+                                      &(radio_config->chooser.filenumber)) &&
+            config_setting_lookup_int(
+                choosersetting, "thread_sleep_seconds",
+                &(radio_config->chooser.thread_sleep_seconds)),
         "Could not read patch chooser settings");
 
   // PureData config

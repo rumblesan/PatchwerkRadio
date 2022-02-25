@@ -18,7 +18,7 @@
 #include "messages.h"
 
 PatchChooserProcessConfig *patch_chooser_config_create(
-    bstring pattern, double play_time, int filenumber, int thread_sleep_seconds,
+    bstring pattern, int play_time, int filenumber, int thread_sleep_seconds,
     int *status_var, ck_ring_t *pipe_out, ck_ring_buffer_t *pipe_out_buffer) {
 
   PatchChooserProcessConfig *cfg = malloc(sizeof(PatchChooserProcessConfig));
@@ -29,7 +29,7 @@ PatchChooserProcessConfig *patch_chooser_config_create(
 
   cfg->filenumber = filenumber;
   cfg->thread_sleep_seconds = thread_sleep_seconds;
-  cfg->play_time = play_time;
+  cfg->play_time = (double)play_time;
 
   check(status_var != NULL, "PatchChooser: Invalid status var");
   cfg->status_var = status_var;

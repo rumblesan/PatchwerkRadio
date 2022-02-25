@@ -10,6 +10,9 @@ typedef struct AudioInputCfg {
 
 typedef struct PatchChooserCfg {
   bstring pattern;
+  int play_time;
+  int filenumber;
+  int thread_sleep_seconds;
 } PatchChooserCfg;
 
 typedef struct PureDataInputCfg {

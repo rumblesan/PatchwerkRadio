@@ -26,7 +26,7 @@ typedef struct PatchChooserProcessConfig {
 
 PatchChooserProcessConfig *patch_chooser_config_create(
                                                   bstring pattern,
-                                                  double play_time,
+                                                  int play_time,
                                                   int filenumber,
                                                   int thread_sleep_seconds,
                                                   int *status_var,
