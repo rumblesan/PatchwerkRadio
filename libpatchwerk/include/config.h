@@ -15,7 +15,7 @@ typedef struct AudioInputCfg {
 } AudioInputCfg;
 
 typedef struct PatchChooserCfg {
-  bstring pattern;
+  bstring patch_folder;
   bstring script_path;
   int play_time;
   int filenumber;

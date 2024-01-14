@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
   check(api_process_cfg != NULL, "Couldn't create api process config");
 
   patch_chooser_cfg = patch_chooser_config_create(
-      radio_config->chooser.pattern,
+      radio_config->chooser.patch_folder,
       radio_config->chooser.script_path,
       radio_config->chooser.play_time,
       radio_config->chooser.filenumber,

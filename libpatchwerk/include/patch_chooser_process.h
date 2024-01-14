@@ -5,10 +5,14 @@
 
 #include <bclib/bstrlib.h>
 
+typedef struct PatchChooserLuaUserdata {
+  ck_ring_t *pipe_out;
+  ck_ring_buffer_t *pipe_out_buffer;
+} PatchChooserLuaUserdata;
 
 typedef struct PatchChooserProcessConfig {
 
-  bstring pattern;
+  bstring patch_folder;
 
   bstring script_path;
 
@@ -30,7 +34,7 @@ typedef struct PatchChooserProcessConfig {
 } PatchChooserProcessConfig;
 
 PatchChooserProcessConfig *patch_chooser_config_create(
-                                                  bstring pattern,
+                                                  bstring patch_folder,
                                                   bstring script_path,
                                                   int play_time,
                                                   int filenumber,

@@ -53,8 +53,8 @@ RadioInputCfg *read_config(char *config_path) {
   // Patch Chooser config
   config_setting_t *choosersetting = config_lookup(cfg, "patchchooser");
   check(choosersetting != NULL &&
-            config_setting_lookup_bstring(choosersetting, "pattern",
-                                          &(radio_config->chooser.pattern)) &&
+            config_setting_lookup_bstring(choosersetting, "patch_folder",
+                                          &(radio_config->chooser.patch_folder)) &&
             config_setting_lookup_bstring(choosersetting, "script_path",
                                           &(radio_config->chooser.script_path)) &&
             config_setting_lookup_int(choosersetting, "play_time",
@@ -135,7 +135,7 @@ void destroy_config(RadioInputCfg *cfg) {
   check(cfg != NULL, "Invalid config");
   bdestroy(cfg->puredata.patch_directory);
   bdestroy(cfg->puredata.patch_file);
-  bdestroy(cfg->chooser.pattern);
+  bdestroy(cfg->chooser.patch_folder);
 
   bdestroy(cfg->broadcast.host);
   bdestroy(cfg->broadcast.source);

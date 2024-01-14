@@ -37,6 +37,7 @@ RUN mkdir -p /opt/patchwerk/patches
 RUN mkdir -p /opt/patchwerk/lua
 
 RUN luarocks --lua-version=5.4 install milua CRYPTO_DIR=/usr
+RUN luarocks --lua-version=5.4 install luafilesystem
 
 WORKDIR /opt/patchwerk
 
