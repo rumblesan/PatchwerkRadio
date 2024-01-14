@@ -30,6 +30,16 @@ RadioInputCfg *read_config(char *config_path) {
         "Could not read config file - %s:%d - %s", config_error_file(cfg),
         config_error_line(cfg), config_error_text(cfg));
 
+  config_setting_t *apisetting = config_lookup(cfg, "api");
+  check(apisetting != NULL &&
+            config_setting_lookup_bstring(apisetting, "script_path",
+                                          &(radio_config->api.script_path)) &&
+            config_setting_lookup_bstring(apisetting, "host",
+                                          &(radio_config->api.host)) &&
+            config_setting_lookup_bstring(apisetting, "port",
+                                          &(radio_config->api.port)),
+        "Could not read api settings");
+
   config_setting_t *audiosetting = config_lookup(cfg, "audio");
   check(audiosetting != NULL &&
             config_setting_lookup_int(audiosetting, "channels",

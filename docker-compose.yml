@@ -2,7 +2,14 @@ version: '3.9'
 services:
   patchwerk:
     build: .
+    volumes:
+      - ./samples:/opt/memento/samples
+      - ./cfg:/opt/memento/cfg
+      - ./lua:/opt/memento/lua
     image: rumblesan/patchwerk-radio
+    command: patchwerk /opt/patchwerk/cfg/local.cfg
+    ports:
+      - "8080:8080"
   icecast:
     image: moul/icecast
     environment:

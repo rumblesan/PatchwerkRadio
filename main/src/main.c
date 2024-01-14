@@ -7,6 +7,7 @@
 
 #include <sndfile.h>
 
+#include "api_process.h"
 #include "audio_synthesis_process.h"
 #include "broadcast_process.h"
 #include "config.h"
@@ -24,11 +25,14 @@ int main(int argc, char *argv[]) {
 
   RadioInputCfg *radio_config = NULL;
 
+  APIProcessConfig *api_process_cfg = NULL;
   PatchChooserProcessConfig *patch_chooser_cfg = NULL;
   AudioSynthesisProcessConfig *audio_synth_cfg = NULL;
   EncoderProcessConfig *encoder_cfg = NULL;
   BroadcastProcessConfig *broadcast_cfg = NULL;
 
+  pthread_t api_process_thread;
+  pthread_attr_t api_process_thread_attr;
   pthread_t patch_chooser_thread;
   pthread_attr_t patch_chooser_thread_attr;
   pthread_t audio_synth_thread;
@@ -70,6 +74,13 @@ int main(int argc, char *argv[]) {
   check(create_pipe(&encode2broadcast, &encode2broadcast_buffer, 32),
         "Could not create audio to encoder ring buffer");
 
+  api_process_cfg = api_process_config_create(
+    radio_config->api.script_path,
+    radio_config->api.host,
+    radio_config->api.port
+  );
+  check(api_process_cfg != NULL, "Couldn't create api process config");
+
   patch_chooser_cfg = patch_chooser_config_create(
       radio_config->chooser.pattern, radio_config->chooser.play_time,
       radio_config->chooser.filenumber,
@@ -101,6 +112,15 @@ int main(int argc, char *argv[]) {
       radio_config->broadcast.url, SHOUT_PROTOCOL_HTTP, SHOUT_FORMAT_OGG,
       &broadcast_status, encode2broadcast, encode2broadcast_buffer);
   check(broadcast_cfg != NULL, "Couldn't create broadcast process config");
+
+  check(!pthread_attr_init(&api_process_thread_attr),
+        "Error setting api process thread attributes");
+  check(!pthread_attr_setdetachstate(&api_process_thread_attr,
+                                     PTHREAD_CREATE_DETACHED),
+        "Error setting api process thread detach state");
+  check(!pthread_create(&api_process_thread, &api_process_thread_attr,
+                        &start_api, api_process_cfg),
+        "Error creating api process thread");
 
   check(!pthread_attr_init(&patch_chooser_thread_attr),
         "Error setting patch chooser thread attributes");

@@ -72,6 +72,8 @@ void *start_patch_chooser(void *_cfg) {
 
   check(true, "stand in check");
 
+  logger("PatchChooser", "path %s", bdata(cfg->pattern));
+
   while (true) {
     now = clock();
     elapsed_seconds = ((double)now - start) / CLOCKS_PER_SEC;
