@@ -6,6 +6,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <lua5.4/lua.h>
+#include <lua5.4/lauxlib.h>
+#include <lua5.4/lualib.h>
 #include <ck_ring.h>
 
 #include <bclib/bstrlib.h>
@@ -18,7 +21,8 @@
 #include "messages.h"
 
 PatchChooserProcessConfig *patch_chooser_config_create(
-    bstring pattern, int play_time, int filenumber, int thread_sleep_seconds,
+    bstring pattern, bstring script_path,
+    int play_time, int filenumber, int thread_sleep_seconds,
     int *status_var, ck_ring_t *pipe_out, ck_ring_buffer_t *pipe_out_buffer) {
 
   PatchChooserProcessConfig *cfg = malloc(sizeof(PatchChooserProcessConfig));
@@ -27,12 +31,20 @@ PatchChooserProcessConfig *patch_chooser_config_create(
   check(pattern != NULL, "PatchChooser: Invalid patch search pattern");
   cfg->pattern = pattern;
 
+  check(script_path != NULL, "PatchChooser: Invalid script path");
+  cfg->script_path = script_path;
+
   cfg->filenumber = filenumber;
   cfg->thread_sleep_seconds = thread_sleep_seconds;
   cfg->play_time = (double)play_time;
 
   check(status_var != NULL, "PatchChooser: Invalid status var");
   cfg->status_var = status_var;
+
+  lua_State *L = luaL_newstate();
+  luaL_openlibs(L);
+
+  cfg->lua = L;
 
   check(pipe_out != NULL, "PatchChooser: Invalid pipe out");
   cfg->pipe_out = pipe_out;
@@ -57,49 +69,27 @@ void *start_patch_chooser(void *_cfg) {
   PatchChooserProcessConfig *cfg = _cfg;
 
   *(cfg->status_var) = 1;
+  lua_State *L = cfg->lua;
 
-  struct timespec tim, tim2;
-  tim.tv_sec = cfg->thread_sleep_seconds;
-  tim.tv_nsec = 0;
+  logger("PathcChooser", "Starting");
 
-  clock_t start, now;
-  double elapsed_seconds;
-  start = -(cfg->thread_sleep_seconds *
-            CLOCKS_PER_SEC); // start at negative so we immediately
-                             // load a new patch
+  lua_createtable(L, 0, 2);
 
-  logger("PatchChooser", "Started");
+  lua_pushstring(L, "pattern");
+  lua_pushlstring(L, bdata(cfg->pattern), cfg->pattern->slen);
+  lua_settable(L, -3);
 
-  check(true, "stand in check");
+  lua_pushstring(L, "count");
+  lua_pushinteger(L, cfg->filenumber);
+  lua_settable(L, -3);
 
-  logger("PatchChooser", "path %s", bdata(cfg->pattern));
+  lua_setglobal(L, "chooser_config");
 
-  while (true) {
-    now = clock();
-    elapsed_seconds = ((double)now - start) / CLOCKS_PER_SEC;
-    if (elapsed_seconds > cfg->thread_sleep_seconds &&
-        ck_ring_size(cfg->pipe_out) < (ck_ring_capacity(cfg->pipe_out) - 1)) {
-      bstring next_patch_path = get_random_patch(cfg->pattern);
-      logger("PatchChooser", "next patch path %s", bdata(next_patch_path));
-      PatchInfo *pi = path_to_patchinfo(next_patch_path);
-      logger("PatchChooser", "next patch: %s - %s", bdata(pi->creator),
-             bdata(pi->title));
-      Message *msg = load_patch_message(pi);
-      if (!ck_ring_enqueue_spsc(cfg->pipe_out, cfg->pipe_out_buffer, msg)) {
-        err_logger("PatchChooser", "Could not send New Patch message");
-        err_logger("PatchChooser", "size %d    capacity %d",
-                   ck_ring_size(cfg->pipe_out),
-                   ck_ring_capacity(cfg->pipe_out));
-        message_destroy(msg);
-      }
-
-      start = clock();
-    }
-    sched_yield();
-    nanosleep(&tim, &tim2);
+  logger("PatchChooser", "Loading script %s", bdata(cfg->script_path));
+  if (luaL_dofile(L, bdata(cfg->script_path)) == LUA_OK) {
+      lua_pop(L, lua_gettop(L));
   }
 
-error:
   logger("PatchChooser", "Finished");
   *(cfg->status_var) = 0;
   patch_chooser_config_destroy(cfg);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <lua5.4/lua.h>
 #include <ck_ring.h>
 
 #include <bclib/bstrlib.h>
@@ -8,6 +9,8 @@
 typedef struct PatchChooserProcessConfig {
 
   bstring pattern;
+
+  bstring script_path;
 
   // number of files to read before quitting
   // mostly used for testing
@@ -19,6 +22,8 @@ typedef struct PatchChooserProcessConfig {
 
   int *status_var;
 
+  lua_State *lua;
+
   ck_ring_t *pipe_out;
   ck_ring_buffer_t *pipe_out_buffer;
 
@@ -26,6 +31,7 @@ typedef struct PatchChooserProcessConfig {
 
 PatchChooserProcessConfig *patch_chooser_config_create(
                                                   bstring pattern,
+                                                  bstring script_path,
                                                   int play_time,
                                                   int filenumber,
                                                   int thread_sleep_seconds,

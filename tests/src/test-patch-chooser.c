@@ -9,6 +9,7 @@
 
 char *test_patch_chooser_config_create() {
   bstring patch_file_pattern = bfromcstr("somepatternhere");
+  bstring script_path = bfromcstr("some/script/path");
   double play_time = 20;
   int filenumber = -1;
   int queue_size = 1024;
@@ -21,7 +22,7 @@ char *test_patch_chooser_config_create() {
   create_pipe(&pipe_out, &pipe_out_buffer, queue_size);
 
   PatchChooserProcessConfig *cfg = patch_chooser_config_create(
-      patch_file_pattern, play_time, filenumber, thread_sleep_seconds,
+      patch_file_pattern, script_path, play_time, filenumber, thread_sleep_seconds,
       &patch_chooser_status, pipe_out, pipe_out_buffer);
 
   mu_assert(cfg != NULL, "Could not create patch chooser process config");
